@@ -4,6 +4,7 @@ import datetime
 import pprint
 import maya.cmds as cmds
 import os
+import platform
 
 import perforce
 reload(perforce)
@@ -58,10 +59,12 @@ test.p4.run_edit()
 
     
 test.p4.cwd = "D:/Perforce/arse"
-print test.p4.fetch_client()
+print p4.fetch_client()['Root']
 
 
 """ Test Suite """
+PORT = "ssl:52.17.163.3:1666"
+USER = "tminor"
 p4 = P4()
 p4.port = PORT
 p4.user = USER
@@ -114,33 +117,52 @@ p4.run_unlock("TestFile2.txt")
 
 # Submit changes with custom description
 
+files = ["//depot/TestFile.txt",  
+         "//depot/TestFile2.txt", 
+         "//depot/maya/workspace.mel"]
+
+p4.run_revert("...")
+
+change = p4.fetch_change()
+change._description = "P4Python Linux Test"
+change._files = files 
+
+p4.run_edit( files )
+
+print change['Files']
+
+p4.run_submit(change)
+
+
+editfiles = ["//depot/TestFile.txt", "//depot/TestFile2.txt", "//depot/TestFile4.txt"]
+if len(editfiles) > 0: p4.run_edit(editfiles)
+addfiles = []
+if len(addfiles) > 0: p4.run_add(addfiles)
+deletefiles = ["//depot/TestFile5.txt"]
+if len(deletefiles) > 0: p4.run_delete(deletefiles)
+
+submitChange(editfiles + addfiles + deletefiles, "Test")
+
 def submitChange(files, description):
-    print files
-    print description
-    
     change = p4.fetch_change()
 
-    #files = p4.run_have("...")
-    #for x in files:
-    #    print x['depotFile']
-    change._description = description
-    change._files = files
-    p4.run_submit(change)
+    change._description = description    
+    
+    fileList = []
+    for changeFile in change._files:
+        if changeFile in files:
+            fileList.append(changeFile)
+        else:
+            print changeFile, p4.run_opened(changeFile)[0]['action']
+            
+    change._files = fileList
+    print p4.run_submit(change)
 
 # Create workspace
 def createWorkspace(rootPath, nameSuffix = None):
     spec = p4.fetch_workspace()
 
-    # Figure out what platform we're on so we can add it to the client name
-    platformType = "unknown"
-    if _platform == "linux" or _platform == "linux2":
-        platformType = "linux"
-    elif _platform == "darwin":
-        platformType = "osx"
-    elif _platform == "win32":
-        platformType = "win"
-        
-    client = "contact_{0}_{1}".format( p4.user, platformType )
+    client = "contact_{0}_{1}".format( p4.user, platform.system() )
     
     if nameSuffix:
         client += "_" + nameSuffix
@@ -149,7 +171,11 @@ def createWorkspace(rootPath, nameSuffix = None):
     spec._root = os.path.join(str(rootPath), spec['Client'] )
     spec._view = [ '//depot/... //{0}/...'.format(spec['Client']) ]
 
-    p4.set_env('P4CLIENT', spec['Client'])
+    p4.client = spec['Client']
+    if platform.system() == "Linux":
+        os.environ['P4CLIENT'] = p4.client
+    else:
+        p4.set_env('P4CLIENT', p4.client)
     p4.cwd = spec['Root']
     
     p4.save_client(spec)
@@ -165,7 +191,7 @@ except:
     workspaceRoot = None
     while not workspaceRoot:
         workspaceRoot = cmds.fileDialog2(cap="Specify workspace root folder", fm=3)[0]
-    createWorkspace(workspaceRoot, "test")
+    createWorkspace(workspaceRoot, "")
 
 # Query file history & current revision
 localRev = p4.run_have("TestFile.txt")[0]['haveRev']
@@ -185,10 +211,12 @@ for change in changes:
 # Error Handling test
 
 files = p4.run("files", "...")
-p4.run_edit("TestFile.txt")
-p4.run_edit("TestFile2.txt")
-p4.run_edit("TestFile3.txt")
-p4.run_add("TestFile4.txt")
+
+p4.run_edit("//depot/TestFile.txt")
+p4.run_edit("//depot/TestFile2.txt")
+p4.run_edit("//depot/TestFile4.txt")
+p4.run_edit("//depot/maya/workspace.mel")
+
 x = p4.run_opened("...")
 for i in x:
     print i

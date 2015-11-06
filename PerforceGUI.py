@@ -1,20 +1,10 @@
-###############################################################################
-# Name: 
-#   test_ui.py
-#
-# Description: 
-#   PySide example that demonstrates using signals and slots
-#
-# Author: 
-#   Chris Zurbrigg (http://zurbrigg.com)
-#
-###############################################################################
-
 import traceback
 import os
 
 from PySide import QtCore
 from PySide import QtGui
+
+from P4 import P4, P4Exception
 
 from shiboken import wrapInstance
 
@@ -23,7 +13,19 @@ import maya.OpenMayaUI as omui
 
 # Hacky way to load our icons, I don't fancy wrestling with resource files
 iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
-tempPath = os.environ['TEMP']
+tempPath = os.environ['TMPDIR']
+
+PORT = "ssl:52.17.163.3:1666"
+USER = "tminor"
+p4 = P4()
+p4.port = PORT
+p4.user = USER
+p4.password = "contact_dev"
+p4.connect()
+p4.run_login("-a")
+
+p4.client = "contact_tminor_linux"
+p4.cwd = p4.fetch_client()['Root']
 
 def maya_main_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
@@ -238,37 +240,53 @@ if __name__ == "__main__":
         pass
     
     # Create minimal UI object
-    test_ui = SubmitChangeUi()
+test_ui = SubmitChangeUi()
     
     # Delete the UI if errors occur to avoid causing winEvent
     # and event errors (in Maya 2014)
-    try:
-        p4.run_edit("...")
-        p4.run_edit("TestFile.txt")
-        p4.run_edit("TestFile2.txt")
-        p4.run_edit("TestFile3.txt")
-        p4.run_add("TestFile4.txt")
-        p4.run_revert("TestFile3.txt")
-        p4.run_delete("TestFile3.txt")
+    try:       
+editFiles = ["TestFile.txt", "TestFile2.txt"]
+addFiles = ["TestFile5.txt"]
 
-        files = p4.run_opened("...", "-a")
-        for file in files:
-            print file
-        
-        entries = []
-        for file in files:
-            fileInfo = p4.run_fstat( file['clientFile'] )[0]
-            print fileInfo
-            
-            entries.append( {'File' : file['clientFile'], 
-                             'Folder' : os.path.split(file['depotFile'])[0],
-                             'Type' : fileInfo['type'],
-                             'Pending_Action' : fileInfo['action'],
-                             }
-                            )
-        
-        test_ui.create( entries )
-        test_ui.show()
+p4.run_edit(editFiles)
+p4.run_add(addFiles)
+
+files = editFiles + addFiles
+
+#change = p4.fetch_change()
+#change._description = "test p4python linux"
+#print change._files
+
+#for file in change._files:
+#    print file, p4.run_opened(file)[0]['action']
+
+#a = p4.run_opened( "//depot/TestFile.txt" )
+#for x in a:
+#    print x['depotFile']
+
+#for x in change:
+#    print x + ":" + str(change[x])
+
+#p4.run_submit(change)
+
+files = p4.run_opened("...", "-a")
+for file in files:
+    print file['depotFile']
+
+entries = []
+for file in files:
+    fileInfo = p4.run_fstat( file )[0]
+    print fileInfo
+    
+    entries.append( {'File' : file, 
+                     'Folder' : os.path.split(fileInfo['depotFile'])[0],
+                     'Type' : fileInfo['type'],
+                     'Pending_Action' : fileInfo['action'],
+                     }
+                    )
+
+test_ui.create( entries )
+test_ui.show()
     except:
         test_ui.deleteLater()
         traceback.print_exc()
