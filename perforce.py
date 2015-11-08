@@ -5,9 +5,14 @@ import pprint
 import maya.cmds as cmds
 import os
 import platform
+import logging
 
 import perforce
 reload(perforce)
+
+import P4 as test
+
+print test.__file__
 
 try:
     test.close()
@@ -143,20 +148,63 @@ if len(deletefiles) > 0: p4.run_delete(deletefiles)
 
 submitChange(editfiles + addfiles + deletefiles, "Test")
 
-def submitChange(files, description):
+def submitChange(files, description, keepCheckedOut = False):
     change = p4.fetch_change()
 
     change._description = description    
     
+    logging.info("Files Passed for submission = {0}".format(files))
+    
     fileList = []
-    for changeFile in change._files:
+    changeFiles = [ entry['depotFile'] for entry in p4.run_opened() ]# change._files
+    logging.info("Changelist = {0}".format(changeFiles))
+    for changeFile in changeFiles :
         if changeFile in files:
             fileList.append(changeFile)
         else:
-            print changeFile, p4.run_opened(changeFile)[0]['action']
+            logging.warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
             
+    logging.info("Final changelist files = {0}".format(fileList)) 
     change._files = fileList
-    print p4.run_submit(change)
+    try:
+        if keepCheckedOut:
+            result = p4.run_submit(change, "-r")
+        else:
+            result = p4.run_submit(change)
+        logging.info(result)
+    except P4Exception as e:
+        logging.warning(e)
+        raise e
+    
+def queryChangelists( status = None):
+    if not status:
+        args = ["changes"]
+    else:
+        args = ["changes", "-s", status]
+
+    try:
+        return p4.run(args)
+    except P4Exception as e:
+        logging.warning(e)
+        raise e
+
+def forceChangelistDelete(lists):
+    for list in lists:
+        try:
+            isUser = (list['user'] == p4.user) 
+            isClient = (list['client'] == p4.client)
+            
+            if isUser and isClient:
+                logging.info("Deleting change {0} on client {1}".format(list['change'], list['client']))
+                p4.run_unlock("-c", list['change'])
+                p4.run_revert("-c", list['change'])
+                p4.run_change("-d", list['change'])
+            if not isUser:
+                logging.warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
+            if not isClient:
+                logging.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
+        except P4Exception as e:
+            logging.critical(e)
 
 # Create workspace
 def createWorkspace(rootPath, nameSuffix = None):
@@ -221,7 +269,7 @@ x = p4.run_opened("...")
 for i in x:
     print i
 for f in files:
-	print "No Callback: %s\n" % (f['depotFile'])
+    print "No Callback: %s\n" % (f['depotFile'])
 
 p4.handler = MyOutputHandler()
 p4.handler = None

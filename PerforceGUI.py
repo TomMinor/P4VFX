@@ -24,43 +24,11 @@ p4.password = "contact_dev"
 p4.connect()
 p4.run_login("-a")
 
-p4.client = "contact_tminor_linux"
 p4.cwd = p4.fetch_client()['Root']
 
 def maya_main_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
-    
-class ErrorUi(QtGui.QDialog):
-    def __init__(self, parent=maya_main_window()):
-        super(ErrorUi, self).__init__(parent)
-        
-    def create(self, title, message):
-        self.setWindowTitle(title)
-        self.setWindowFlags(QtCore.Qt.Tool)
-        self.setFixedSize(True)
-        
-        self.createControls()
-        self.createLayout()
-        self.createConnections()
-        
-    def createControls(self):
-        self.confirmBtn = QtGui.QAbstractButton("Okay")
-        self.label = QtGui.QLabel(message)
-        
-    def createLayout(self):
-        main_layout = QtGui.QVBoxLayout()
-        main_layout.setContentsMargins(6, 6, 6, 6)
-        
-        main_layout.addWidget(self.label)
-        main_layout.addWidget(self.confirmBtn)
-        
-        #main_layout.addStretch()
-        
-        self.setLayout(main_layout)
-        
-    def createConnections(self):
-        pass
         
 
 class SubmitChangeUi(QtGui.QDialog):
@@ -101,6 +69,7 @@ class SubmitChangeUi(QtGui.QDialog):
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels( headers )
         
+        
         for i, file in enumerate(self.fileList):
             # Saves us manually keeping track of the current column
             column = 0
@@ -123,12 +92,14 @@ class SubmitChangeUi(QtGui.QDialog):
             # File
             fileName = file['File']
             newItem = QtGui.QTableWidgetItem( os.path.basename(fileName) )
+            newItem.setFlags( newItem.flags() ^ QtCore.Qt.ItemIsEditable )
             self.tableWidget.setItem(i, column, newItem) 
             column += 1
             
             # Text
             fileType = file['Type']
             newItem = QtGui.QTableWidgetItem( fileType.capitalize() )
+            newItem.setFlags( newItem.flags() ^ QtCore.Qt.ItemIsEditable )
             self.tableWidget.setItem(i, column, newItem) 
             column += 1
             
@@ -164,14 +135,12 @@ class SubmitChangeUi(QtGui.QDialog):
             
             # Folder
             newItem = QtGui.QTableWidgetItem( file['Folder'])
+            newItem.setFlags( newItem.flags() ^ QtCore.Qt.ItemIsEditable )
             self.tableWidget.setItem(i, column, newItem) 
             column += 1
         
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
-        #self.tableWidget.setColumnWidth(1, 120)
-        #self.tableWidget.setColumnWidth(2, 180)
-        #self.tableWidget.setColumnWidth(3, 60)
         
         
     def create_layout(self):
@@ -215,8 +184,36 @@ class SubmitChangeUi(QtGui.QDialog):
             cellWidget = self.tableWidget.cellWidget(i, 0)
             if cellWidget.findChild( QtGui.QCheckBox ).checkState() == QtCore.Qt.Checked:
                 files.append( self.fileList[i]['File'] )
-        submitChange(files, str(self.descriptionWidget.toPlainText()) )
                 
+        keepCheckedOut = self.chkboxLockedWidget.checkState()
+                
+        try:
+            submitChange(files, str(self.descriptionWidget.toPlainText()), keepCheckedOut )
+            self.close()
+        except P4Exception as e:
+            error_ui = QtGui.QMessageBox()
+            error_ui.setWindowFlags(QtCore.Qt.WA_DeleteOnClose)
+            
+            eMsg = str(e).replace("[P4#run]", "")
+            idx = eMsg.find('\t')
+            firstPart = " ".join(eMsg[0:idx].split())
+            firstPart = firstPart[:-1]
+            
+            secondPart = eMsg[idx:]
+            secondPart = secondPart.replace('\\n', '\n')
+            secondPart = secondPart.replace('"', '')
+            secondPart = " ".join(secondPart.split())
+            secondPart = secondPart.replace(' ', '', 1) # Annoying space at the start, remove it
+            
+            eMsg = "{0}\n\n{1}".format(firstPart, secondPart)
+            
+            if "[Warning]" in str(e):
+                eMsg = eMsg.replace("[Warning]:", "")
+                error_ui.warning(maya_main_window(), "Submit Warning", eMsg)
+            elif "[Error]" in str(e):
+                eMsg = eMsg.replace("[Error]:", "")
+                error_ui.critical(maya_main_window(), "Submit Error", eMsg)
+            error_ui.deleteLater()               
 
     def validateText(self):
         text = self.descriptionWidget.toPlainText()
@@ -228,30 +225,71 @@ class SubmitChangeUi(QtGui.QDialog):
         
     def on_text_changed(self):
         self.validateText()
-          
-              
+
+     
+     
 if __name__ == "__main__":
+
+    """ ------------- SUBMIT GUI ------------------ """
     
-    # Development workaround for PySide winEvent error (in Maya 2014)
-    # Make sure the UI is deleted before recreating
+    print p4.run_edit("TestFile.txt") 
+    # ERRORS TO CHECK FOR (if the list doesn't contain a dictionary)
+    # can't add existing file
+    #
+    
+        # Make sure the UI is deleted before recreating
     try:
-        test_ui.deleteLater()
+        submit_ui.deleteLater()
     except:
         pass
     
     # Create minimal UI object
-test_ui = SubmitChangeUi()
+    submit_ui = SubmitChangeUi()
     
     # Delete the UI if errors occur to avoid causing winEvent
     # and event errors (in Maya 2014)
     try:       
-editFiles = ["TestFile.txt", "TestFile2.txt"]
-addFiles = ["TestFile5.txt"]
+        files = p4.run_opened("...", "-a")
+        #for file in files:
+            #print file['depotFile']
 
-p4.run_edit(editFiles)
-p4.run_add(addFiles)
+        entries = []
+        for file in files:
+            filePath = file['depotFile']
+            fileInfo = p4.run_fstat( filePath )[0]
 
-files = editFiles + addFiles
+            entry = {'File' : filePath, 
+                     'Folder' : os.path.split(filePath)[0],
+                     'Type' : fileInfo['type'],
+                     'Pending_Action' : fileInfo['action'],
+                     }
+
+            entries.append(entry)
+
+        print entries
+
+        submit_ui.create( entries )
+        submit_ui.show()
+    except:
+        submit_ui.deleteLater()
+        traceback.print_exc()
+    
+    """ FILE HISTORY GUI """
+    
+    
+
+""" old stuff """
+#lists = queryChangelists("pending")
+#forceChangelistDelete(lists)
+
+#editFiles = ["TestFile.txt", "TestFile2.txt"]
+#addFiles = ["TestFile5.txt"]
+
+#p4.run_edit( ["TestFile.txt", "TestFile2.txt"] )
+#p4.run_add( ["fam.jpg"] )
+#p4.run_delete("TestFile2.txt")
+
+#files = editFiles + addFiles
 
 #change = p4.fetch_change()
 #change._description = "test p4python linux"
@@ -268,25 +306,3 @@ files = editFiles + addFiles
 #    print x + ":" + str(change[x])
 
 #p4.run_submit(change)
-
-files = p4.run_opened("...", "-a")
-for file in files:
-    print file['depotFile']
-
-entries = []
-for file in files:
-    fileInfo = p4.run_fstat( file )[0]
-    print fileInfo
-    
-    entries.append( {'File' : file, 
-                     'Folder' : os.path.split(fileInfo['depotFile'])[0],
-                     'Type' : fileInfo['type'],
-                     'Pending_Action' : fileInfo['action'],
-                     }
-                    )
-
-test_ui.create( entries )
-test_ui.show()
-    except:
-        test_ui.deleteLater()
-        traceback.print_exc()
