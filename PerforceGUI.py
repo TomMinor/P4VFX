@@ -3,6 +3,7 @@ import os
 
 from PySide import QtCore
 from PySide import QtGui
+import logging
 
 from P4 import P4, P4Exception
 
@@ -232,7 +233,7 @@ if __name__ == "__main__":
 
     """ ------------- SUBMIT GUI ------------------ """
     
-    print p4.run_edit("TestFile.txt") 
+    #print p4.run_edit("TestFile.txt") 
     # ERRORS TO CHECK FOR (if the list doesn't contain a dictionary)
     # can't add existing file
     #
@@ -306,3 +307,101 @@ if __name__ == "__main__":
 #    print x + ":" + str(change[x])
 
 #p4.run_submit(change)
+
+
+def submitChange(files, description, keepCheckedOut = False):
+    change = p4.fetch_change()
+
+    change._description = description    
+    
+    logging.info("Files Passed for submission = {0}".format(files))
+    
+    fileList = []
+    changeFiles = [ entry['depotFile'] for entry in p4.run_opened() ]# change._files
+    logging.info("Changelist = {0}".format(changeFiles))
+    for changeFile in changeFiles :
+        if changeFile in files:
+            fileList.append(changeFile)
+        else:
+            logging.warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
+            
+    logging.info("Final changelist files = {0}".format(fileList)) 
+    change._files = fileList
+    try:
+        if keepCheckedOut:
+            result = p4.run_submit(change, "-r")
+        else:
+            result = p4.run_submit(change)
+        logging.info(result)
+    except P4Exception as e:
+        logging.warning(e)
+        raise e
+
+#fileDialog = QtGui.QFileDialog( maya_main_window(), "Add file(s)", str(p4.cwd) )
+#fileDialog.directoryEntered.connect( onEnter )
+#fileDialog.show()
+
+def isPathInClientRoot(path):
+    try:
+        if os.path.isdir(path):
+            p4.run_files(os.path.join(path, "..."))
+        else:
+            p4.run_files(path)
+        return True
+    except P4Exception as e:
+        logging.warning(e)
+        return False
+
+def onEnter(*args):
+    if not isPathInClientRoot(args[0]):
+        fileDialog.setDirectory( p4.cwd )
+
+
+# Open files
+#p4.run_opened("...")
+
+# Close files
+#p4.run_revert("...")
+
+
+
+#results = queryChangelists("pending")
+#for list in results:
+#    print list
+
+#forceChangelistDelete([ results[0] ])
+#p4.run_change("45")
+
+#p4.run_revert("FileTest5.txt")
+
+
+def queryChangelists( status = None):
+    if not status:
+        args = ["changes"]
+    else:
+        args = ["changes", "-s", status]
+
+    try:
+        return p4.run(args)
+    except P4Exception as e:
+        logging.warning(e)
+        raise e
+
+def forceChangelistDelete(lists):
+    for list in lists:
+        try:
+            isUser = (list['user'] == p4.user) 
+            isClient = (list['client'] == p4.client)
+            
+            if isUser and isClient:
+                logging.info("Deleting change {0} on client {1}".format(list['change'], list['client']))
+                print list['change']
+                p4.run_unlock("-c", list['change'])
+                p4.run_revert("-c", list['change'], "...")
+                p4.run_change("-d", list['change'])
+            if not isUser:
+                logging.warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
+            if not isClient:
+                logging.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
+        except P4Exception as e:
+            logging.critical(e)
