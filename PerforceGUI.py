@@ -16,17 +16,6 @@ import maya.OpenMayaUI as omui
 iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
 tempPath = os.environ['TMPDIR']
 
-PORT = "ssl:52.17.163.3:1666"
-USER = "tminor"
-p4 = P4()
-p4.port = PORT
-p4.user = USER
-p4.password = "contact_dev"
-p4.connect()
-p4.run_login("-a")
-
-p4.cwd = p4.fetch_client()['Root']
-
 def maya_main_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
@@ -229,7 +218,7 @@ class SubmitChangeUi(QtGui.QDialog):
 
      
      
-if __name__ == "__main__":
+if __name__ == "arse":
 
     """ ------------- SUBMIT GUI ------------------ """
     
@@ -266,8 +255,6 @@ if __name__ == "__main__":
                      }
 
             entries.append(entry)
-
-        print entries
 
         submit_ui.create( entries )
         submit_ui.show()
@@ -339,22 +326,36 @@ def submitChange(files, description, keepCheckedOut = False):
 
 #fileDialog = QtGui.QFileDialog( maya_main_window(), "Add file(s)", str(p4.cwd) )
 #fileDialog.directoryEntered.connect( onEnter )
+#fileDialog.setFileMode(QtGui.QFileDialog.ExistingFiles)
 #fileDialog.show()
+#files = fileDialog.selectedFiles()
+
+#validFiles = []
+#for file in files:
+#    if isPathInClientRoot(file):
+#        validFiles.append(file)
+
+
+def inDirectory(file, directory):
+    #make both absolute    
+    directory = os.path.join(os.path.realpath(directory), '')
+    file = os.path.realpath(file)
+
+    #return true, if the common prefix of both is equal to directory
+    #e.g. /a/b/c/d.rst and directory is /a/b, the common prefix is /a/b
+    return (os.path.commonprefix([file, directory]) == directory) or (os.path.abspath(file) == os.path.abspath(directory))
+
+
+
 
 def isPathInClientRoot(path):
-    try:
-        if os.path.isdir(path):
-            p4.run_files(os.path.join(path, "..."))
-        else:
-            p4.run_files(path)
+    if inDirectory(path, p4.cwd):
         return True
-    except P4Exception as e:
-        logging.warning(e)
+    else:
+        logging.warning("{0} not in client root".format(path))
         return False
 
-def onEnter(*args):
-    if not isPathInClientRoot(args[0]):
-        fileDialog.setDirectory( p4.cwd )
+
 
 
 # Open files
@@ -405,3 +406,173 @@ def forceChangelistDelete(lists):
                 logging.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
         except P4Exception as e:
             logging.critical(e)
+            
+
+
+
+import maya.cmds as cmds
+import maya.mel
+import maya.utils as mu
+
+class PerforceUI:
+    def __init__(self, p4):
+        self.deleteUI = None
+        self.submitUI = None
+        self.perforceMenu = ""
+        
+        self.p4 = p4
+        self.p4.connect()
+        self.p4.run_login("-a")
+        self.p4.cwd = p4.fetch_client()['Root']
+
+        
+    def addMenu(self):
+        try:
+            cmds.deleteUI(self.perforceMenu)
+        except:
+            pass
+        
+        gMainWindow = maya.mel.eval('$temp1=$gMainWindow')
+        self.perforceMenu = cmds.menu(parent = gMainWindow, tearOff = True, label = 'Perforce')
+        
+        cmds.setParent(self.perforceMenu, menu=True)
+        cmds.menuItem(label="Add File",                     command = self.addFile                  )
+        cmds.menuItem(label="Edit File",                    command = self.editFile                 )
+        cmds.menuItem(label="Delete File",                  command = self.deleteFile               )
+        cmds.menuItem(label="Revert File",                  command = self.revertFile               )
+        
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label="Submit Change",                command = self.submitChange             )
+        
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label="Lock File",                    command = self.lockFile                 )
+        cmds.menuItem(label="Unlock File",                  command = self.unlockFile               )
+        
+        cmds.menuItem(label="Get Latest File",              command = self.syncFile                 )
+        cmds.menuItem(label="Sync All",                     command = self.syncAll                  )
+        
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label="File History",                 command = "print(`File History`)"       )
+        cmds.menuItem(label="File Status",                  command = "print(`File Status`)"        )
+        
+        cmds.menuItem(divider=True)
+        cmds.menuItem(subMenu=True, tearOff=True, label="Preferences")
+        cmds.menuItem(label="Auto-lock on add/edit?",       checkBox = True)
+        cmds.menuItem(label="Login",                        command = "print(`Login`)"              )
+        cmds.menuItem(label="Change Password",              command = "print(`Change password`)"    )
+        cmds.menuItem(label="Server Info",                  command = "print(`Server Info`)"        )
+        cmds.menuItem(label="Perforce Help",                command = "print(`Perforce Help`)"      )
+        
+
+    # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
+    def __processClientFile(self, title, p4command):
+        fileDialog = QtGui.QFileDialog( maya_main_window(), title, str(self.p4.cwd) )
+        
+        def onEnter(*args):
+            if not isPathInClientRoot(args[0]):
+                fileDialog.setDirectory( p4.cwd )
+                
+        def onComplete(*args):
+            # Only add files if we didn't cancel
+            if args[0] == 1:
+                for file in fileDialog.selectedFiles():
+                    if isPathInClientRoot(file):
+                        try: 
+                            logging.info( p4command(file) )
+                        except P4Exception as e:
+                            logging.warning(e)
+                    else:
+                        logging.warning("{0} is not in client root.".format(file))
+                
+            fileDialog.deleteLater()
+        
+        
+        fileDialog.setFileMode(QtGui.QFileDialog.ExistingFiles)
+        fileDialog.directoryEntered.connect( onEnter )
+        fileDialog.finished.connect( onComplete )
+        fileDialog.show()
+
+    def addFile(self, *args):
+        self.__processClientFile("Add file(s)", self.p4.run_add)        
+        
+    def editFile(self, *args):
+        self.__processClientFile("Edit file(s)", self.p4.run_edit)
+        
+    def deleteFile(self, *args):
+        self.__processClientFile("Delete file(s)", self.p4.run_delete)
+        
+    def revertFile(self, *args):
+        self.__processClientFile("Revert file(s)", self.p4.run_revert)     
+        
+    def lockFile(self, *args):
+        self.__processClientFile("Lock file(s)", self.p4.run_lock)
+        
+    def unlockFile(self, *args):
+        self.__processClientFile("Unlock file(s)", self.p4.run_unlock)
+
+    def submitChange(self, *args):
+        try:
+            self.submitUI.deleteLater()
+        except:
+            pass
+
+        self.submitUI = SubmitChangeUi()
+
+        # Delete the UI if errors occur to avoid causing winEvent
+        # and event errors (in Maya 2014)
+        try:       
+            files = p4.run_opened("...", "-a")
+
+            entries = []
+            for file in files:
+                filePath = file['depotFile']
+                fileInfo = p4.run_fstat( filePath )[0]
+
+                entry = {'File' : filePath, 
+                         'Folder' : os.path.split(filePath)[0],
+                         'Type' : fileInfo['type'],
+                         'Pending_Action' : fileInfo['action'],
+                         }
+
+                entries.append(entry)
+
+            self.submitUI.create( entries )
+            self.submitUI.show()
+        except:
+            self.submitUI.deleteLater()
+            traceback.print_exc()
+        
+    def syncFile(self, *args):
+        print "Sync File"
+        print args
+        
+    def syncAll(self, *args):
+        print "Sync All",
+        print args
+        
+    def fileHistory(self, *args):
+        print "File History",
+        print args
+        
+    def fileStatus(self, *args):
+        print "File Status"
+        print args
+      
+if __name__ == "__main__":
+    try:
+        cmds.deleteUI(ui.perforceMenu)
+    except:
+        pass
+
+    PORT = "ssl:52.17.163.3:1666"
+    USER = "tminor"
+    p4 = P4()
+    p4.port = PORT
+    p4.user = USER
+    p4.password = "contact_dev"
+
+    ui = PerforceUI(p4)
+    ui.addMenu()
+
+    #mu.executeDeferred('ui.addMenu()')
+
