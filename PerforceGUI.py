@@ -24,7 +24,7 @@ def getCurrentSceneFile():
     return cmds.file(q=True, sceneName=True)
     
 def openScene(filePath):
-    cmds.file(filePath, o=True)
+    cmds.file(filePath, f=True, o=True)
     
 mainParent = maya_main_window()
 
@@ -498,7 +498,7 @@ class FileRevisionUI(QtGui.QDialog):
             logging.info("{0} synced to latest version".format(filePath))
             self.loadFileLog()
         except P4Exception as e:
-            displayErrorUi(e)
+            displayErrorUI(e)
     
     def loadFileLog(self, *args):    
         index = self.fileTree.selectedIndexes()[0]
@@ -915,7 +915,6 @@ class PerforceUI:
         
         cmds.menuItem(label = "Scene", divider=True)
         cmds.menuItem(label="File Status",                  command = self.querySceneStatus       )
-        cmds.menuItem(label="Preview File Revision",                  command = "print(`File Status`)"        )
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=True, label="Preferences")
@@ -1021,7 +1020,7 @@ class PerforceUI:
                 text += ("{0} : {1}\n".format(x, result[x]))
             QtGui.QMessageBox.information(mainParent, "Scene Info", text)
         except P4Exception as e:
-            displayErrorUi()
+            displayErrorUI(e)
         
         
     def fileRevisions(self, *args):
@@ -1126,9 +1125,6 @@ class PerforceUI:
     def fileStatus(self, *args):
         print "File Status"
         print args
-
-
-
       
 if __name__ == "__main__":
     try:
