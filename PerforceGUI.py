@@ -1,16 +1,15 @@
 import traceback
 import os
+import logging
 
 from PySide import QtCore
 from PySide import QtGui
-import logging
 
 from P4 import P4, P4Exception
 
-from shiboken import wrapInstance
-
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
+from shiboken import wrapInstance
 
 # Hacky way to load our icons, I don't fancy wrestling with resource files
 iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
@@ -19,8 +18,50 @@ tempPath = os.environ['TMPDIR']
 def maya_main_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
+
+def getCurrentSceneFile():
+    return cmds.file(q=True, sceneName=True)
     
 mainParent = maya_main_window()
+
+def parsePerforceError(e):
+    eMsg = str(e).replace("[P4#run]", "")
+    idx = eMsg.find('\t')
+    firstPart = " ".join(eMsg[0:idx].split())
+    firstPart = firstPart[:-1]
+    
+    secondPart = eMsg[idx:]
+    secondPart = secondPart.replace('\\n', '\n')
+    secondPart = secondPart.replace('"', '')
+    secondPart = " ".join(secondPart.split())
+    secondPart = secondPart.replace(' ', '', 1) # Annoying space at the start, remove it
+    
+    eMsg = "{0}\n\n{1}".format(firstPart, secondPart)
+
+    type = "info"
+    if "[Warning]" in str(e):
+        eMsg = eMsg.replace("[Warning]:", "")
+        type = "warning"
+    elif "[Error]" in str(e):
+        eMsg = eMsg.replace("[Error]:", "")
+        type = "error"
+    
+    return eMsg, type
+
+def displayErrorUI(e):
+    error_ui = QtGui.QMessageBox()
+    error_ui.setWindowFlags(QtCore.Qt.WA_DeleteOnClose)
+    
+    eMsg, type = parsePerforceError(e)
+    
+    if type == "warning":
+        error_ui.warning(mainParent, "Submit Warning", eMsg)
+    elif type == "error":
+        error_ui.critical(mainParent, "Submit Error", eMsg)
+    else:
+        error_ui.information(mainParent, "Submit Error", eMsg)
+        
+    error_ui.deleteLater()  
 
 class SubmitChangeUi(QtGui.QDialog):
     def __init__(self, parent=mainParent ):
@@ -167,8 +208,9 @@ class SubmitChangeUi(QtGui.QDialog):
     # SLOTS
     #--------------------------------------------------------------------------      
     def on_submit(self):
-        if not self.validateText:
-            cmds.confirmDialog(title="Warning", message = "Empty description")
+        if not self.validateText():
+            QtGui.QMessageBox.warning(mainParent, "Submit Warning", "No valid description entered")
+            return
         
         files = []
         for i in range( self.tableWidget.rowCount() ):
@@ -182,29 +224,7 @@ class SubmitChangeUi(QtGui.QDialog):
             submitChange(files, str(self.descriptionWidget.toPlainText()), keepCheckedOut )
             self.close()
         except P4Exception as e:
-            error_ui = QtGui.QMessageBox()
-            error_ui.setWindowFlags(QtCore.Qt.WA_DeleteOnClose)
-            
-            eMsg = str(e).replace("[P4#run]", "")
-            idx = eMsg.find('\t')
-            firstPart = " ".join(eMsg[0:idx].split())
-            firstPart = firstPart[:-1]
-            
-            secondPart = eMsg[idx:]
-            secondPart = secondPart.replace('\\n', '\n')
-            secondPart = secondPart.replace('"', '')
-            secondPart = " ".join(secondPart.split())
-            secondPart = secondPart.replace(' ', '', 1) # Annoying space at the start, remove it
-            
-            eMsg = "{0}\n\n{1}".format(firstPart, secondPart)
-            
-            if "[Warning]" in str(e):
-                eMsg = eMsg.replace("[Warning]:", "")
-                error_ui.warning(mainParent, "Submit Warning", eMsg)
-            elif "[Error]" in str(e):
-                eMsg = eMsg.replace("[Error]:", "")
-                error_ui.critical(mainParent, "Submit Error", eMsg)
-            error_ui.deleteLater()               
+            displayErrorUI(e)
 
     def validateText(self):
         text = self.descriptionWidget.toPlainText()
@@ -212,7 +232,10 @@ class SubmitChangeUi(QtGui.QDialog):
         if text == "<Enter Description>" or "<" in text or ">" in text:
             p.setColor(QtGui.QPalette.Active,   QtGui.QPalette.Text, QtCore.Qt.red)
             p.setColor(QtGui.QPalette.Inactive, QtGui.QPalette.Text, QtCore.Qt.red)
-        self.descriptionWidget.setPalette(p) 
+            self.descriptionWidget.setPalette(p)
+            return False
+        self.descriptionWidget.setPalette(p)
+        return True
         
     def on_text_changed(self):
         self.validateText()
@@ -228,17 +251,16 @@ class FileRevisionUI(QtGui.QDialog):
         path = iconPath + "p4.png"
         icon = QtGui.QIcon(path)
         
-        self.setWindowTitle("File Revision")
+        self.setWindowTitle("File Revisions")
         self.setWindowIcon(icon)
         self.setWindowFlags(QtCore.Qt.Window)
         
-        self.fileList = [ "File" ]
+        self.fileRevisions = []
         
         self.create_controls()
         self.create_layout()
         self.create_connections()
         
-        self.validateText()
         
     def create_controls(self):
         '''
@@ -246,19 +268,17 @@ class FileRevisionUI(QtGui.QDialog):
         '''
         self.descriptionWidget = QtGui.QPlainTextEdit("<Enter Description>")
         self.descriptionLabel = QtGui.QLabel("Change Description:")
-        self.getRevisionBtn = QtGui.QPushButton("Get Selected Revision")
-        #self.getRevisionBtn.setMaximumWidth(100)
-        self.getLatestBtn = QtGui.QPushButton("Get Latest Revision")
-        #self.getLatestBtn.setMaximumWidth(100)
+        self.getRevisionBtn = QtGui.QPushButton("Revert to Selected Revision")
+        self.getLatestBtn = QtGui.QPushButton("Sync to Latest Revision")
         
         self.fileTreeModel = QtGui.QFileSystemModel()
         self.fileTreeModel.setRootPath( self.p4.cwd )
-        
         self.fileTree = QtGui.QTreeView()
         self.fileTree.setModel(self.fileTreeModel)
         self.fileTree.setRootIndex( self.fileTreeModel.index(self.p4.cwd) )
+        self.fileTree.setColumnWidth(0, 180)
          
-        headers = [ "Change", "Description" ]
+        headers = [ "Revision", "Action", "Date", "Description" ]
         
         self.tableWidget = QtGui.QTableWidget()
         self.tableWidget.setColumnCount(len(headers))
@@ -266,8 +286,8 @@ class FileRevisionUI(QtGui.QDialog):
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels( headers )
         self.tableWidget.verticalHeader().setVisible(False)
-        
-        
+        self.tableWidget.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         
     def create_layout(self):
         '''
@@ -283,105 +303,90 @@ class FileRevisionUI(QtGui.QDialog):
         main_layout.addWidget(self.tableWidget)
         
         bottomLayout = QtGui.QHBoxLayout()
-        bottomLayout.addWidget( self.getLatestBtn )
+        bottomLayout.addWidget( self.getRevisionBtn )
         bottomLayout.addSpacerItem( QtGui.QSpacerItem(200, 16) )
-        bottomLayout.addWidget( self.getRevisionBtn )        
+        bottomLayout.addWidget( self.getLatestBtn )
         
         main_layout.addLayout( bottomLayout ) 
-        
-        #main_layout.addStretch()
-        
         self.setLayout(main_layout)
                 
     def create_connections(self):
         '''
         Create the signal/slot connections
         '''        
-        self.getRevisionBtn .clicked.connect(self.on_submit)
-        self.descriptionWidget.textChanged.connect(self.on_text_changed)
         self.fileTree.clicked.connect( self.loadFileLog )
+        self.getLatestBtn.clicked.connect( self.onSyncLatest )
+        self.getRevisionBtn.clicked.connect( self.onRevertToSelection )
 
         
     #--------------------------------------------------------------------------
     # SLOTS
     #--------------------------------------------------------------------------      
-    def on_submit(self):
-        if not self.validateText:
-            cmds.confirmDialog(title="Warning", message = "Empty description")
+    
+    def onRevertToSelection(self, *args): 
+        index = self.tableWidget.currentRow()
+        item = self.fileRevisions[index]
+        revision = item['revision']
         
-        files = []
-        for i in range( self.tableWidget.rowCount() ):
-            cellWidget = self.tableWidget.cellWidget(i, 0)
-            if cellWidget.findChild( QtGui.QCheckBox ).checkState() == QtCore.Qt.Checked:
-                files.append( self.fileList[i]['File'] )
-                
-        keepCheckedOut = self.chkboxLockedWidget.checkState()
-                
-        try:
-            submitChange(files, str(self.descriptionWidget.toPlainText()), keepCheckedOut )
-            self.close()
-        except P4Exception as e:
-            error_ui = QtGui.QMessageBox()
-            error_ui.setWindowFlags(QtCore.Qt.WA_DeleteOnClose)
-            
-            eMsg = str(e).replace("[P4#run]", "")
-            idx = eMsg.find('\t')
-            firstPart = " ".join(eMsg[0:idx].split())
-            firstPart = firstPart[:-1]
-            
-            secondPart = eMsg[idx:]
-            secondPart = secondPart.replace('\\n', '\n')
-            secondPart = secondPart.replace('"', '')
-            secondPart = " ".join(secondPart.split())
-            secondPart = secondPart.replace(' ', '', 1) # Annoying space at the start, remove it
-            
-            eMsg = "{0}\n\n{1}".format(firstPart, secondPart)
-            
-            if "[Warning]" in str(e):
-                eMsg = eMsg.replace("[Warning]:", "")
-                error_ui.warning(mainParent, "Submit Warning", eMsg)
-            elif "[Error]" in str(e):
-                eMsg = eMsg.replace("[Error]:", "")
-                error_ui.critical(mainParent, "Submit Error", eMsg)
-            error_ui.deleteLater()               
-
-    def validateText(self):
-        text = self.descriptionWidget.toPlainText()
-        p = QtGui.QPalette()
-        if text == "<Enter Description>" or "<" in text or ">" in text:
-            p.setColor(QtGui.QPalette.Active,   QtGui.QPalette.Text, QtCore.Qt.red)
-            p.setColor(QtGui.QPalette.Inactive, QtGui.QPalette.Text, QtCore.Qt.red)
-        self.descriptionWidget.setPalette(p) 
-        
-    def on_text_changed(self):
-        self.validateText()
-        
-    def loadFileLog(self, *args):
-        index = args[0]
+        index = self.fileTree.selectedIndexes()[0]
         if not index:
             return
         
-        fileName = self.fileTreeModel.fileInfo(index).fileName()
-        files = p4.run_filelog("-l", fileName )
-
+        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        
+        if syncPreviousRevision(filePath, revision, "Rollback test"):
+            QtGui.QMessageBox.information(mainParent, "Rollback", "Success!")
+        
+        self.loadFileLog()
+        
+        
+    def onSyncLatest(self, *args):
+        index = self.fileTree.selectedIndexes()[0]
+        if not index:
+            return
+            
+        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        
+        try:
+            p4.run_sync("-f", filePath)
+            logging.info("{0} synced to latest version".format(filePath))
+            self.loadFileLog()
+        except P4Exception as e:
+            displayErrorUi(e)
+    
+    def loadFileLog(self, *args):    
+        index = self.fileTree.selectedIndexes()[0]
+        if not index:
+            return
+        
+        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        
+        if os.path.isdir(filePath):
+            return
+        
+        files = p4.run_filelog("-l", filePath )        
 
         # Generate revision dictionary
-        fileRevisions = []
+        self.fileRevisions  = []
 
         for file in files:
             file.depotFile
             for revision in file.revisions:
-                fileRevisions.append( { "change":revision.change, "desc":revision.desc} ) 
+                self.fileRevisions .append( { "revision": revision.rev, 
+                                        "action": revision.action, 
+                                        "date"  : revision.time,
+                                        "desc"  : revision.desc
+                                        } ) 
 
-        self.tableWidget.setRowCount( len(fileRevisions) )
-        
+        self.tableWidget.setRowCount( len(self.fileRevisions ) )
+
         # Populate table
-        for i, revision in enumerate(fileRevisions):
+        for i, revision in enumerate(self.fileRevisions ):
             # Saves us manually keeping track of the current column
             column = 0
 
             # Fill in the rest of the data
-            change = revision['change']
+            change = "#{0}".format(revision['revision'])
             
             widget = QtGui.QWidget()
             layout = QtGui.QHBoxLayout()
@@ -395,7 +400,55 @@ class FileRevisionUI(QtGui.QDialog):
             self.tableWidget.setCellWidget(i, column, widget)
             column += 1
             
-            # Text
+            # Action
+            pendingAction = revision['action']
+            
+            path = ""
+            if( pendingAction == "edit" ):
+                path = iconPath + "icon_blue.png"
+            elif( pendingAction == "add" ):
+                path = iconPath + "icon_green.png"
+            elif( pendingAction == "delete" ):
+                path = iconPath + "icon_red.png"
+
+            widget = QtGui.QWidget()
+
+            icon = QtGui.QPixmap(path)
+            icon = icon.scaled(16, 16)
+            
+            iconLabel = QtGui.QLabel()
+            iconLabel.setPixmap(icon)
+            textLabel = QtGui.QLabel( pendingAction.capitalize() )
+            textLabel.setStyleSheet( "QLabel { border: none } " )
+            
+            layout = QtGui.QHBoxLayout()
+            layout.addWidget( iconLabel )
+            layout.addWidget( textLabel )
+            layout.setAlignment(QtCore.Qt.AlignLeft)
+            #layout.setContentsMargins(0,0,0,0)
+            widget.setLayout(layout)
+            
+            self.tableWidget.setCellWidget(i, column, widget)
+            column += 1
+            
+            # Date
+            date = revision['date']
+            
+            widget = QtGui.QWidget()
+            layout = QtGui.QHBoxLayout()
+            label = QtGui.QLabel(str(date))
+            label.setStyleSheet( "QLabel { border: none } " )
+            
+            layout.addWidget( label )
+            layout.setAlignment(QtCore.Qt.AlignCenter)
+            layout.setContentsMargins( 4, 0, 4, 0)
+            widget.setLayout(layout)
+            
+            self.tableWidget.setCellWidget(i, column, widget)
+            column += 1
+            
+            
+            # Description
             desc = revision['desc']
             
             widget = QtGui.QWidget()
@@ -403,10 +456,12 @@ class FileRevisionUI(QtGui.QDialog):
             text = QtGui.QLineEdit()
             text.setText( desc )
             text.setReadOnly(True)
+            text.setAlignment( QtCore.Qt.AlignLeft )
+            text.setStyleSheet( "QLineEdit { border: none " )
             
             layout.addWidget( text )
-            layout.setAlignment(QtCore.Qt.AlignCenter)
-            layout.setContentsMargins(0,0,0,0)
+            layout.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
+            layout.setContentsMargins(4, 0, 1, 0)
             widget.setLayout(layout)
             
             self.tableWidget.setCellWidget(i, column, widget)
@@ -535,6 +590,53 @@ def submitChange(files, description, keepCheckedOut = False):
 #    if isPathInClientRoot(file):
 #        validFiles.append(file)
 
+def syncPreviousRevision(file, revision, description):
+    p4.run_sync("-f", "{0}#{1}".format(file, revision))
+
+    change = p4.fetch_change()
+    change._description = description
+
+    result = p4.save_change(change)
+    r = re.compile("Change ([1-9][0-9]*) created.")
+    m = r.match(result[0])
+    changeId = "0"
+    if m:
+        changeId = m.group(1)
+
+    try:
+        errors = []
+        
+        try:
+            p4.run_edit("-c", changeId, file)
+        except P4Exception as e:
+            errors.append(e)
+            
+        try:
+            p4.run_sync("-f", file)
+        except P4Exception as e:
+            errors.append(e)
+        
+        try:
+            p4.run_resolve("-ay")
+        except P4Exception as e:
+            errors.append(e)
+
+        try:
+            change = p4.fetch_change(changeId)
+        except P4Exception as e:
+            errors.append(e)
+            
+        try:
+            p4.run_submit(change)
+        except P4Exception as e:
+            errors.append(e)
+        
+        if errors:
+            raise tuple(errors)
+    except P4Exception as e:
+        displayErrorUI(e)
+        return False
+    return True
 
 def inDirectory(file, directory):
     #make both absolute    
@@ -636,24 +738,30 @@ class PerforceUI:
         self.perforceMenu = cmds.menu(parent = gMainWindow, tearOff = True, label = 'Perforce')
         
         cmds.setParent(self.perforceMenu, menu=True)
+        cmds.menuItem(label = "Basics", divider=True)
         cmds.menuItem(label="Add File",                     command = self.addFile                  )
         cmds.menuItem(label="Edit File",                    command = self.editFile                 )
         cmds.menuItem(label="Delete File",                  command = self.deleteFile               )
         cmds.menuItem(label="Revert File",                  command = self.revertFile               )
         
-        cmds.menuItem(divider=True)
+        cmds.menuItem(label = "Changes", divider=True)
         cmds.menuItem(label="Submit Change",                command = self.submitChange             )
         
-        cmds.menuItem(divider=True)
+        cmds.menuItem(label = "Permissions", divider=True)
+        cmds.menuItem(label="Lock This File",               command = self.lockFile                 )
+        cmds.menuItem(label="Unlock This File",             command = self.unlockFile, en=False     )
         cmds.menuItem(label="Lock File",                    command = self.lockFile                 )
         cmds.menuItem(label="Unlock File",                  command = self.unlockFile               )
         
+        cmds.menuItem(label = "Revisions", divider=True)
         cmds.menuItem(label="Get Latest File",              command = self.syncFile                 )
         cmds.menuItem(label="Sync All",                     command = self.syncAll                  )
+        cmds.menuItem(label="Sync All References",          command = self.syncAll, en=False        )
+        cmds.menuItem(label="All File Revisions",           command = self.fileRevisions)
         
-        cmds.menuItem(divider=True)
-        cmds.menuItem(label="File History",                 command = "print(`File History`)"       )
-        cmds.menuItem(label="File Status",                  command = "print(`File Status`)"        )
+        cmds.menuItem(label = "Scene", divider=True)
+        cmds.menuItem(label="File Status",                  command = self.querySceneStatus       )
+        cmds.menuItem(label="Preview File Revision",                  command = "print(`File Status`)"        )
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=True, label="Preferences")
@@ -665,7 +773,7 @@ class PerforceUI:
         
 
     # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
-    def __processClientFile(self, title, p4command, *args):
+    def __processClientFile(self, title, p4command, *p4args):
         fileDialog = QtGui.QFileDialog( maya_main_window(), title, str(self.p4.cwd) )
         
         def onEnter(*args):
@@ -678,7 +786,7 @@ class PerforceUI:
                 for file in fileDialog.selectedFiles():
                     if isPathInClientRoot(file):
                         try: 
-                            logging.info( p4command(file, args) )
+                            logging.info( p4command(p4args, file) )
                         except P4Exception as e:
                             logging.warning(e)
                     else:
@@ -712,9 +820,34 @@ class PerforceUI:
         
     def syncFile(self, *args):
         self.__processClientFile("Sync file(s)", self.p4.run_sync)
+
+    def querySceneStatus(self, *args):
+        try:
+            result = p4.run_fstat("-Oa", getCurrentSceneFile())[0]
+            text = ""
+            for x in result:
+                text += ("{0} : {1}\n".format(x, result[x]))
+            QtGui.QMessageBox.information(mainParent, "Scene Info", text)
+        except P4Exception as e:
+            displayErrorUi()
         
-    def syncAll(self, *args):
-        self.__processClientFile("Unlock file(s)", self.p4.run_unlock)
+        
+    def fileRevisions(self, *args):
+        try:
+            self.revisionUi.deleteLater()
+        except:
+            pass
+
+        self.revisionUi = FileRevisionUI()
+
+        # Delete the UI if errors occur to avoid causing winEvent
+        # and event errors (in Maya 2014)
+        try:       
+            self.revisionUi.create()
+            self.revisionUi.show()
+        except:
+            self.revisionUi.deleteLater()
+            traceback.print_exc()
 
     def submitChange(self, *args):
         try:
@@ -749,12 +882,18 @@ class PerforceUI:
             traceback.print_exc()
         
     def syncFile(self, *args):
-        print "Sync File"
-        print args
+        try:
+            p4.run_sync("-f", getCurrentSceneFile())
+            logging.info("Got latest revision for {0}".format(getCurrentSceneFile()))
+        except P4Exception as e:
+            displayErrorUI(e)
         
     def syncAll(self, *args):
-        print "Sync All",
-        print args
+        try:
+            p4.run_sync("-f", "...")
+            logging.info("Got latest revisions for client")
+        except P4Exception as e:
+            displayErrorUI(e)
         
     def fileHistory(self, *args):
         print "File History",
@@ -782,22 +921,6 @@ if __name__ == "__main__":
 
     ui = PerforceUI(p4)
     ui.addMenu()
-    
-    
-    
-    try:
-        test.deleteLater()
-    except:
-        pass
-
-    test = FileRevisionUI()
-    
-    try:
-        test.create()
-        test.show()
-    except:
-        test.deleteLater()
-        traceback.print_exc()
 
     #mu.executeDeferred('ui.addMenu()')
 
