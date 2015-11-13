@@ -963,7 +963,7 @@ class PerforceUI:
         self.__processClientFile("Delete file(s)", self.p4.run_delete)
         
     def revertFile(self, *args):
-        self.__processClientFile("Revert file(s)", self.p4.run_revert)     
+        self.__processClientFile("Revert file(s)", self.p4.run_revert, "-k")     
         
     def lockFile(self, *args):
         self.__processClientFile("Lock file(s)", self.p4.run_lock)
