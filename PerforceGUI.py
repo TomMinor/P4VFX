@@ -892,8 +892,7 @@ class PerforceUI:
         
         cmds.setParent(self.perforceMenu, menu=True)
         cmds.menuItem(label = "Basics", divider=True)
-        cmds.menuItem(label="Add File",                     command = self.addFile                  )
-        cmds.menuItem(label="Edit File",                    command = self.editFile                 )
+        cmds.menuItem(label="Checkout File",                     command = self.checkoutFile )
         cmds.menuItem(label="Delete File",                  command = self.deleteFile               )
         cmds.menuItem(label="Revert File",                  command = self.revertFile               )
         
@@ -953,11 +952,25 @@ class PerforceUI:
         fileDialog.finished.connect( onComplete )
         fileDialog.show()
 
-    def addFile(self, *args):
-        self.__processClientFile("Add file(s)", self.p4.run_add)        
+    def checkoutFile(self, *args):
+        self.__processClientFile("Checkout file(s)", self.run_checkoutFile)
         
-    def editFile(self, *args):
-        self.__processClientFile("Edit file(s)", self.p4.run_edit)
+    def run_checkoutFile(self, *args):
+        for file in args[1:]:
+            result = None
+            try:
+                result = self.p4.run_fstat(file)
+            except P4Exception as e:
+                pass
+                
+            try:
+                if result:
+                    logging.info(self.p4.run_edit(file))
+                else:
+                    logging.info(self.p4.run_add(file))
+            except P4Exception as e:
+                displayErrorUI(e)
+                
         
     def deleteFile(self, *args):
         self.__processClientFile("Delete file(s)", self.p4.run_delete)
