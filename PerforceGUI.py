@@ -2,19 +2,51 @@ import traceback
 import os
 import logging
 import ntpath
+import stat
 
 from PySide import QtCore
 from PySide import QtGui
 
 from P4 import P4, P4Exception
 
+import maya.mel
+import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
 from shiboken import wrapInstance
 
+
+class P4Icon:
+    addFile = "File0242.png"    
+    editFile = "File0440.png"
+    deleteFile = "File0253.png"
+
+
 # Hacky way to load our icons, I don't fancy wrestling with resource files
 iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
 tempPath = os.environ['TMPDIR']
+
+def removeReadOnlyBit(files):
+    for file in files:
+        fileAtt = os.stat(file)[0]
+        if (not fileAtt & stat.S_IWRITE):
+           # File is read-only, so make it writeable
+           os.chmod(file, stat.S_IWRITE)
+        else:
+           # File is writeable, so make it read-only
+           #os.chmod(myFile, stat.S_IREAD)
+           pass
+           
+def addReadOnlyBit(files):
+    for file in files:
+        fileAtt = os.stat(file)[0]
+        if (not fileAtt & stat.S_IWRITE):
+           # File is read-only, so make it writeable
+           #os.chmod(file, stat.S_IWRITE)
+           pass
+        else:
+           # File is writeable, so make it read-only
+           os.chmod(file, stat.S_IREAD)
 
 def maya_main_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
@@ -25,6 +57,18 @@ def getCurrentSceneFile():
     
 def openScene(filePath):
     cmds.file(filePath, f=True, o=True)
+    
+def queryFileExtension(filePath, extensions = [] ):
+    if not extensions:
+        return False
+        
+    extensions = [ ext.lower() for ext in extensions ]
+        
+    fileExt = os.path.splitext(filePath)[1]
+    fileExt = fileExt.lower()
+    
+    return fileExt in extensions
+    
     
 mainParent = maya_main_window()
 
@@ -144,11 +188,11 @@ class SubmitChangeUi(QtGui.QDialog):
             
             path = ""
             if( pendingAction == "edit" ):
-                path = iconPath + "icon_blue.png"
+                path = os.path.join(iconPath, P4Icon.editFile)
             elif( pendingAction == "add" ):
-                path = iconPath + "icon_green.png"
+                path = os.path.join(iconPath, P4Icon.addFile)
             elif( pendingAction == "delete" ):
-                path = iconPath + "icon_red.png"
+                path = os.path.join(iconPath, P4Icon.deleteFile)
 
             widget = QtGui.QWidget()
 
@@ -226,6 +270,16 @@ class SubmitChangeUi(QtGui.QDialog):
                 
         try:
             submitChange(files, str(self.descriptionWidget.toPlainText()), keepCheckedOut )
+            if not keepCheckedOut:
+                clientFiles = []
+                for file in files:
+                    try:
+                        path = p4.run_fstat(file)[0]
+                        clientFiles.append(path['clientFile'])
+                    except P4Exception as e:
+                        displayErrorUI(e)
+
+                removeReadOnlyBit(clientFiles) # Bug with windows, doesn't make files writable on submit for some reason
             self.close()
         except P4Exception as e:
             displayErrorUI(e)
@@ -256,7 +310,7 @@ class OpenedFilesUI(QtGui.QDialog):
         path = iconPath + "p4.png"
         icon = QtGui.QIcon(path)
         
-        self.setWindowTitle("Opened Files")
+        self.setWindowTitle("Changelist : Opened Files")
         self.setWindowIcon(icon)
         self.setWindowFlags(QtCore.Qt.Window)
         
@@ -276,8 +330,99 @@ class OpenedFilesUI(QtGui.QDialog):
         self.tableWidget.setMaximumHeight(200)
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels( headers )
+        self.tableWidget.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        
+        self.openSelectedBtn = QtGui.QPushButton("Open")
+        self.openSelectedBtn.setEnabled(False)
+        self.openSelectedBtn.setIcon( QtGui.QIcon(os.path.join(iconPath, "File0228.png")) )
+        
+        self.revertFileBtn = QtGui.QPushButton("Remove from changelist")
+        self.revertFileBtn.setEnabled(False)
+        self.revertFileBtn.setIcon( QtGui.QIcon(os.path.join(iconPath, "File0308.png")) )
+        
+        self.updateTable()   
+        
+    def create_layout(self):
+        '''
+        Create the layouts and add widgets
+        '''
+        check_box_layout = QtGui.QHBoxLayout()
+        check_box_layout.setContentsMargins(2, 2, 2, 2)
+        
+        main_layout = QtGui.QVBoxLayout()
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        
+        main_layout.addWidget(self.tableWidget)
+        
+        bottomLayout = QtGui.QHBoxLayout()
+        bottomLayout.addWidget( self.revertFileBtn )
+        bottomLayout.addSpacerItem( QtGui.QSpacerItem(400, 16) )
+        bottomLayout.addWidget( self.openSelectedBtn )
+        
+        main_layout.addLayout(bottomLayout)
+        
+        self.setLayout(main_layout)
+                
+    def create_connections(self):
+        '''
+        Create the signal/slot connections
+        '''        
+        self.revertFileBtn.clicked.connect(self.revertSelected)
+        self.openSelectedBtn.clicked.connect(self.openSelectedFile)
+        self.tableWidget.clicked.connect(self.validateSelected)
         
         
+    #--------------------------------------------------------------------------
+    # SLOTS
+    #--------------------------------------------------------------------------  
+    def revertSelected(self, *args):
+        index = self.tableWidget.currentRow()
+        
+        fileName = self.fileList[index]['File']
+        filePath = self.fileList[index]['Folder']
+        
+        depotFile = os.path.join(filePath, fileName)
+        
+        try:
+            logging.info( p4.run_revert("-k", depotFile) )
+        except P4Exception as e:
+            displayErrorUI(e)
+
+        self.fileList.pop(index)
+        self.updateTable()
+    
+    def validateSelected(self, *args):
+        index = self.tableWidget.currentRow()
+        item = self.fileList[index]
+        fileName = item['File']
+        filePath = item['Folder']
+        
+        depotFile = os.path.join(filePath, fileName)
+        
+        if queryFileExtension(depotFile, ['.ma', '.mb']):
+            self.openSelectedBtn.setEnabled(True)
+        else:
+            self.openSelectedBtn.setEnabled(False)
+            
+        self.revertFileBtn.setEnabled(True)
+    
+    def openSelectedFile(self, *args):
+        index = self.tableWidget.currentRow()
+        item = self.fileList[index]
+        fileName = item['File']
+        filePath = item['Folder']
+        
+        depotFile = os.path.join(filePath, fileName)
+        
+        try:
+            result = self.p4.run_fstat(depotFile)[0]
+            clientFile = result['clientFile']
+            openScene(clientFile)
+        except P4Exception as e:
+            displayErrorUI(e)
+        
+    def updateTable(self):
         for i, file in enumerate(self.fileList):
             # Saves us manually keeping track of the current column
             column = 0
@@ -302,11 +447,11 @@ class OpenedFilesUI(QtGui.QDialog):
             
             path = ""
             if( pendingAction == "edit" ):
-                path = iconPath + "icon_blue.png"
+                path = os.path.join(iconPath, P4Icon.editFile)
             elif( pendingAction == "add" ):
-                path = iconPath + "icon_green.png"
+                path = os.path.join(iconPath, P4Icon.addFile)
             elif( pendingAction == "delete" ):
-                path = iconPath + "icon_red.png"
+                path = os.path.join(iconPath, P4Icon.deleteFile)
 
             widget = QtGui.QWidget()
 
@@ -332,35 +477,12 @@ class OpenedFilesUI(QtGui.QDialog):
             newItem.setFlags( newItem.flags() ^ QtCore.Qt.ItemIsEditable )
             self.tableWidget.setItem(i, column, newItem) 
             column += 1
+            
         
+        self.tableWidget.setRowCount(len(self.fileList))
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         
-        
-    def create_layout(self):
-        '''
-        Create the layouts and add widgets
-        '''
-        check_box_layout = QtGui.QHBoxLayout()
-        check_box_layout.setContentsMargins(2, 2, 2, 2)
-        
-        main_layout = QtGui.QVBoxLayout()
-        main_layout.setContentsMargins(6, 6, 6, 6)
-        
-        main_layout.addWidget(self.tableWidget)
-        
-        self.setLayout(main_layout)
-                
-    def create_connections(self):
-        '''
-        Create the signal/slot connections
-        '''        
-
-        
-        
-    #--------------------------------------------------------------------------
-    # SLOTS
-    #--------------------------------------------------------------------------  
 
 
 class FileRevisionUI(QtGui.QDialog):
@@ -397,6 +519,10 @@ class FileRevisionUI(QtGui.QDialog):
         
         self.fileTreeModel = QtGui.QFileSystemModel()
         self.fileTreeModel.setRootPath( self.p4.cwd )
+           
+            
+        #else:
+            
         self.fileTree = QtGui.QTreeView()
         self.fileTree.setModel(self.fileTreeModel)
         self.fileTree.setRootIndex( self.fileTreeModel.index(self.p4.cwd) )
@@ -412,6 +538,10 @@ class FileRevisionUI(QtGui.QDialog):
         self.tableWidget.verticalHeader().setVisible(False)
         self.tableWidget.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        
+        if getCurrentSceneFile():
+            self.fileTree.setCurrentIndex(self.fileTreeModel.index(  getCurrentSceneFile() ))
+            self.loadFileLog()
         
     def create_layout(self):
         '''
@@ -444,7 +574,6 @@ class FileRevisionUI(QtGui.QDialog):
         self.getLatestBtn.clicked.connect( self.onSyncLatest )
         self.getRevisionBtn.clicked.connect( self.onRevertToSelection )
         self.getPreviewBtn.clicked.connect( self.getPreview )
-
         
     #--------------------------------------------------------------------------
     # SLOTS
@@ -459,20 +588,30 @@ class FileRevisionUI(QtGui.QDialog):
             return
             
         filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        fileName = ntpath.basename(filePath)
+        
+        path = os.path.join(tempPath, fileName)
         
         try:
-            tmpPath = os.path.join(tempPath, ntpath.basename(filePath))
+            tmpPath = path
             p4.run_print("-o", tmpPath, "{0}#{1}".format(filePath, revision))
             logging.info("Synced preview to {0} at revision {1}".format(tmpPath, revision))
-            openScene(tmpPath)
+            if self.isSceneFile:
+                openScene(tmpPath)
+            else:
+                os.startfile( tmpPath )
         except P4Exception as e:
             displayErrorUI(e)
         
     
     def onRevertToSelection(self, *args): 
+        index = self.tableWidget.rowCount() - 1
+        item = self.fileRevisions[index]
+        currentRevision = item['revision']
+        
         index = self.tableWidget.currentRow()
         item = self.fileRevisions[index]
-        revision = item['revision']
+        rollbackRevision = item['revision']
         
         index = self.fileTree.selectedIndexes()[0]
         if not index:
@@ -480,8 +619,9 @@ class FileRevisionUI(QtGui.QDialog):
         
         filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
         
-        if syncPreviousRevision(filePath, revision, "Rollback test"):
-            QtGui.QMessageBox.information(mainParent, "Rollback", "Success!")
+        desc = "Rollback #{0} to #{1}".format(currentRevision, rollbackRevision)
+        if syncPreviousRevision(filePath, rollbackRevision, desc):
+            QtGui.QMessageBox.information(mainParent, "Success", "Successful {0}".format(desc))
         
         self.loadFileLog()
         
@@ -500,19 +640,22 @@ class FileRevisionUI(QtGui.QDialog):
         except P4Exception as e:
             displayErrorUI(e)
     
-    def loadFileLog(self, *args):    
+    def loadFileLog(self, *args):
         index = self.fileTree.selectedIndexes()[0]
         if not index:
             return
         
+        self.getPreviewBtn.setEnabled(True)
         filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
-
-        # Only support maya scene file preview
-        fileExt = os.path.splitext(filePath)[1]
-        if fileExt == ".ma" or fileExt == ".mb":
-            self.getPreviewBtn.setEnabled(True)
+            
+        if queryFileExtension(filePath, ['.ma', '.mb']):
+            #self.getPreviewBtn.setEnabled(True)
+            self.getPreviewBtn.setText("Preview Scene Revision")
+            self.isSceneFile = True
         else:
-            self.getPreviewBtn.setEnabled(False)
+            #self.getPreviewBtn.setEnabled(False)       
+            self.getPreviewBtn.setText("Preview File Revision")
+            self.isSceneFile = False
         
         if os.path.isdir(filePath):
             return
@@ -558,11 +701,11 @@ class FileRevisionUI(QtGui.QDialog):
             
             path = ""
             if( pendingAction == "edit" ):
-                path = iconPath + "icon_blue.png"
+                path = os.path.join(iconPath, P4Icon.editFile)
             elif( pendingAction == "add" ):
-                path = iconPath + "icon_green.png"
+                path = os.path.join(iconPath, P4Icon.addFile)
             elif( pendingAction == "delete" ):
-                path = iconPath + "icon_red.png"
+                path = os.path.join(iconPath, P4Icon.deleteFile)
 
             widget = QtGui.QWidget()
 
@@ -744,7 +887,7 @@ def submitChange(files, description, keepCheckedOut = False):
 #        validFiles.append(file)
 
 def syncPreviousRevision(file, revision, description):
-    p4.run_sync("-f", "{0}#{1}".format(file, revision))
+    logging.info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
 
     change = p4.fetch_change()
     change._description = description
@@ -760,17 +903,17 @@ def syncPreviousRevision(file, revision, description):
         errors = []
         
         try:
-            p4.run_edit("-c", changeId, file)
+            logging.info( p4.run_edit("-c", changeId, file) )
         except P4Exception as e:
             errors.append(e)
             
         try:
-            p4.run_sync("-f", file)
+            logging.info( p4.run_sync("-f", file) )
         except P4Exception as e:
             errors.append(e)
         
         try:
-            p4.run_resolve("-ay")
+            logging.info( p4.run_resolve("-ay") )
         except P4Exception as e:
             errors.append(e)
 
@@ -780,7 +923,7 @@ def syncPreviousRevision(file, revision, description):
             errors.append(e)
             
         try:
-            p4.run_submit(change)
+            logging.info( p4.run_submit(change) )
         except P4Exception as e:
             errors.append(e)
         
@@ -861,13 +1004,6 @@ def forceChangelistDelete(lists):
                 logging.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
         except P4Exception as e:
             logging.critical(e)
-            
-
-
-
-import maya.cmds as cmds
-import maya.mel
-import maya.utils as mu
 
 class PerforceUI:
     def __init__(self, p4):
@@ -891,60 +1027,65 @@ class PerforceUI:
         self.perforceMenu = cmds.menu(parent = gMainWindow, tearOff = True, label = 'Perforce')
         
         cmds.setParent(self.perforceMenu, menu=True)
-        cmds.menuItem(label = "Basics", divider=True)
-        cmds.menuItem(label="Checkout File",                     command = self.checkoutFile )
-        cmds.menuItem(label="Delete File",                  command = self.deleteFile               )
-        cmds.menuItem(label="Revert File",                  command = self.revertFile               )
+        cmds.menuItem(label = "Client Commands", divider=True)
+        cmds.menuItem(label="Checkout File(s)",                     image = os.path.join(iconPath, "File0078.png"), command = self.checkoutFile )
+        cmds.menuItem(label="Mark for Delete",                      image = os.path.join(iconPath, "File0253.png"), command = self.deleteFile               )
+        cmds.menuItem(label="Show Changelist",                      image = os.path.join(iconPath, "File0252.png"), command = self.queryOpened              )
+        #cmds.menuItem(divider=True)
+        #self.lockFile = cmds.menuItem(label="Lock This File",       image = os.path.join(iconPath, "File0143.png"), command = self.lockThisFile                 )
+        #self.unlockFile = cmds.menuItem(label="Unlock This File",   image = os.path.join(iconPath, "File0252.png"), command = self.unlockThisFile, en=False     )
+        #cmds.menuItem(label="Lock File",                            image = os.path.join(iconPath, "File0143.png"), command = self.lockFile                 )
+        #cmds.menuItem(label="Unlock File",                          image = os.path.join(iconPath, "File0252.png"), command = self.unlockFile               )
         
-        cmds.menuItem(label = "Changes", divider=True)
-        cmds.menuItem(label="Submit Change",                command = self.submitChange             )
-        cmds.menuItem(label="Opened Files",                 command = self.queryOpened              )
-        
-        cmds.menuItem(label = "Permissions", divider=True)
-        self.lockFile = cmds.menuItem(label="Lock This File",               command = self.lockThisFile                 )
-        self.unlockFile = cmds.menuItem(label="Unlock This File",             command = self.unlockThisFile, en=False     )
-        cmds.menuItem(label="Lock File",                    command = self.lockFile                 )
-        cmds.menuItem(label="Unlock File",                  command = self.unlockFile               )
-        
-        cmds.menuItem(label = "Revisions", divider=True)
-        cmds.menuItem(label="Get Latest File",              command = self.syncFile                 )
-        cmds.menuItem(label="Sync All",                     command = self.syncAll                  )
-        cmds.menuItem(label="Sync All References",          command = self.syncAll, en=False        )
-        cmds.menuItem(label="All File Revisions",           command = self.fileRevisions        )
+        cmds.menuItem(label = "Depot Commands", divider=True)
+        cmds.menuItem(label="Submit Change",                        image = os.path.join(iconPath, "File0107.png"), command = self.submitChange             )
+        cmds.menuItem(label="Sync All",                     image = os.path.join(iconPath, "File0175.png"), command = self.syncAll                 )
+        cmds.menuItem(label="Sync All References",          image = os.path.join(iconPath, "File0320.png"), command = self.syncAll, en=False        )
+        #cmds.menuItem(label="Get Latest Scene",              image = os.path.join(iconPath, "File0275.png"), command = self.syncFile                 )
+        cmds.menuItem(label="Show Depot History",           image = os.path.join(iconPath, "File0279.png"), command = self.fileRevisions        )
         
         cmds.menuItem(label = "Scene", divider=True)
-        cmds.menuItem(label="File Status",                  command = self.querySceneStatus       )
+        cmds.menuItem(label="File Status",                  image = os.path.join(iconPath, "File0409.png"), command = self.querySceneStatus       )
         
         cmds.menuItem(divider=True)
-        cmds.menuItem(subMenu=True, tearOff=True, label="Preferences")
-        cmds.menuItem(label="Auto-lock on add/edit?",       checkBox = True)
-        cmds.menuItem(label="Login",                        command = "print(`Login`)"              )
-        cmds.menuItem(label="Change Password",              command = "print(`Change password`)"    )
-        cmds.menuItem(label="Server Info",                  command = "print(`Server Info`)"        )
-        cmds.menuItem(label="Perforce Help",                command = "print(`Perforce Help`)"      )
+        cmds.menuItem(subMenu=True, tearOff=False, label="Preferences")
+        cmds.menuItem(label="Login",                        image = os.path.join(iconPath, "File0077.png"), command = "print('Login')", en=False              )
+        cmds.menuItem(label="Change Password",              image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')", en=False    )
+        cmds.menuItem(label="Server Info",                  image = os.path.join(iconPath, "File0031.png"), command = "print('Server Info')", en=False        )
+        #cmds.menuItem(label="Perforce Help",                command = "print(`Perforce Help`)"      )
         
 
     # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
-    def __processClientFile(self, title, p4command, *p4args):
+    def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
         fileDialog = QtGui.QFileDialog( maya_main_window(), title, str(self.p4.cwd) )
         
         def onEnter(*args):
             if not isPathInClientRoot(args[0]):
-                fileDialog.setDirectory( p4.cwd )
+                fileDialog.setDirectory( self.p4.cwd )
                 
         def onComplete(*args):
+            selectedFiles = []
+            error = None
+            
+            if preCallback:
+                preCallback(fileDialog.selectedFiles())
+            
             # Only add files if we didn't cancel
             if args[0] == 1:
                 for file in fileDialog.selectedFiles():
                     if isPathInClientRoot(file):
                         try: 
                             logging.info( p4command(p4args, file) )
+                            selectedFiles.append(file)
                         except P4Exception as e:
                             logging.warning(e)
+                            error = e
                     else:
                         logging.warning("{0} is not in client root.".format(file))
                 
             fileDialog.deleteLater()
+            if finishCallback: 
+                finishCallback(selectedFiles, error)
         
         
         fileDialog.setFileMode(QtGui.QFileDialog.ExistingFiles)
@@ -953,7 +1094,14 @@ class PerforceUI:
         fileDialog.show()
 
     def checkoutFile(self, *args):
-        self.__processClientFile("Checkout file(s)", self.run_checkoutFile)
+        def openFirstFile(selected, error):
+            if not error:
+                if len(selected) == 1 and queryFileExtension(selected[0], ['.ma', '.mb']):
+                    result = QtGui.QMessageBox.question(mainParent, "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes |  QtGui.QMessageBox.No)
+                    if result == QtGui.QMessageBox.StandardButton.Yes:
+                        openScene(selected[0])
+        
+        self.__processClientFile("Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
         
     def run_checkoutFile(self, *args):
         for file in args[1:]:
@@ -966,23 +1114,28 @@ class PerforceUI:
             try:
                 if result:
                     logging.info(self.p4.run_edit(file))
+                    logging.info(self.p4.run_lock(file))
                 else:
                     logging.info(self.p4.run_add(file))
+                    logging.info(self.p4.run_lock(file))
             except P4Exception as e:
                 displayErrorUI(e)
                 
         
     def deleteFile(self, *args):
-        self.__processClientFile("Delete file(s)", self.p4.run_delete)
+        def makeFilesReadOnly(files):
+            addReadOnlyBit(files)
+        
+        self.__processClientFile("Delete file(s)", None, makeFilesReadOnly, self.p4.run_delete)
         
     def revertFile(self, *args):
-        self.__processClientFile("Revert file(s)", self.p4.run_revert, "-k")     
+        self.__processClientFile("Revert file(s)", None, None, self.p4.run_revert, "-k")     
         
     def lockFile(self, *args):
-        self.__processClientFile("Lock file(s)", self.p4.run_lock)
+        self.__processClientFile("Lock file(s)", None, None, self.p4.run_lock)
         
     def unlockFile(self, *args):
-        self.__processClientFile("Unlock file(s)", self.p4.run_unlock)
+        self.__processClientFile("Unlock file(s)", None, None, self.p4.run_unlock)
         
     def lockThisFile(self, *args):
         file =  getCurrentSceneFile()
@@ -1070,11 +1223,13 @@ class PerforceUI:
             for file in files:
                 filePath = file['depotFile']
                 fileInfo = p4.run_fstat( filePath )[0]
+                locked = 'ourLock' in file
 
                 entry = {'File' : filePath, 
                          'Folder' : os.path.split(filePath)[0],
                          'Type' : fileInfo['type'],
                          'Pending_Action' : fileInfo['action'],
+                         'Locked' : locked
                          }
 
                 entries.append(entry)
@@ -1130,14 +1285,6 @@ class PerforceUI:
             logging.info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
-        
-    def fileHistory(self, *args):
-        print "File History",
-        print args
-        
-    def fileStatus(self, *args):
-        print "File Status"
-        print args
       
 if __name__ == "__main__":
     try:
