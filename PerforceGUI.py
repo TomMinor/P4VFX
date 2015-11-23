@@ -547,6 +547,12 @@ class FileRevisionUI(QtGui.QDialog):
         self.tableWidget.verticalHeader().setVisible(False)
         self.tableWidget.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+                     
+        self.statusBar = QtGui.QStatusBar()
+        #self.statusBar.showMessage("Test")
+        
+        self.horizontalLine = QtGui.QFrame();
+        self.horizontalLine.setFrameShape(QtGui.QFrame.Shape.HLine)
         
         if getCurrentSceneFile():
             self.fileTree.setCurrentIndex(self.fileTreeModel.index(  getCurrentSceneFile() ))
@@ -573,6 +579,9 @@ class FileRevisionUI(QtGui.QDialog):
         bottomLayout.addWidget( self.getLatestBtn )
         
         main_layout.addLayout( bottomLayout ) 
+        main_layout.addWidget(self.horizontalLine)
+        main_layout.addWidget(self.statusBar)
+        
         self.setLayout(main_layout)
                 
     def create_connections(self):
@@ -583,6 +592,8 @@ class FileRevisionUI(QtGui.QDialog):
         self.getLatestBtn.clicked.connect( self.onSyncLatest )
         self.getRevisionBtn.clicked.connect( self.onRevertToSelection )
         self.getPreviewBtn.clicked.connect( self.getPreview )
+        
+        self.statusBar.showMessage("Checked out by user kbishop")
         
     #--------------------------------------------------------------------------
     # SLOTS
@@ -1335,7 +1346,7 @@ import platform
 def createWorkspace(rootPath, nameSuffix = None):
     spec = p4.fetch_workspace()
 
-    client = "contact_{0}_{1}".format( p4.user, platform.system() )
+    client = "contact_{0}_{1}".format( p4.user, platform.system().lower() )
     
     if nameSuffix:
         client += "_" + nameSuffix
