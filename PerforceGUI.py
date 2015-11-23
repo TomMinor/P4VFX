@@ -3,6 +3,8 @@ import os
 import logging
 import ntpath
 import stat
+import sys
+import subprocess
 
 from PySide import QtCore
 from PySide import QtGui
@@ -57,6 +59,13 @@ def getCurrentSceneFile():
     
 def openScene(filePath):
     cmds.file(filePath, f=True, o=True)
+
+def open_file(filename):
+    if sys.platform == "win32":
+        os.startfile(filename)
+    else:
+        opener ="open" if sys.platform == "darwin" else "xdg-open"
+        subprocess.call([opener, filename])
     
 def queryFileExtension(filePath, extensions = [] ):
     if not extensions:
@@ -599,7 +608,8 @@ class FileRevisionUI(QtGui.QDialog):
             if self.isSceneFile:
                 openScene(tmpPath)
             else:
-                os.startfile( tmpPath )
+                open_file(tmpPath)
+                
         except P4Exception as e:
             displayErrorUI(e)
         
@@ -1013,7 +1023,38 @@ class PerforceUI:
         
         self.p4 = p4
         self.p4.connect()
-        self.p4.run_login("-a")
+        
+        # Validate SSH Login / Attempt to login
+        try:
+            self.p4.run_login("-a")
+        except P4Exception as e:
+            regexKey = re.compile(ur'(?:[0-9a-fA-F]:?){40}')
+            #regexIP = re.compile(ur'[0-9]+(?:\.[0-9]+){3}?:[0-9]{4}')
+            errorMsg = str(e).replace('\\n', ' ')
+            
+            key = re.findall(regexKey, errorMsg)
+            #ip = re.findall(regexIP, errorMsg)
+            
+            if key:
+                self.p4.run_trust("-i", key[0])
+                self.p4.run_login("-a")
+            else:
+                raise e
+
+        # Validate workspace
+        try:
+            p4.cwd = p4.run_info()[0]['clientRoot']
+        except:
+            print "No workspace found, creating default one"
+            workspaceRoot = None
+            while not workspaceRoot:
+                workspaceRoot = cmds.fileDialog2(cap="Specify workspace root folder", fm=3)[0]
+            try:
+                createWorkspace(workspaceRoot, "")
+            except P4Exception as e:
+                displayErrorUI(e)
+                raise e
+
         self.p4.cwd = p4.fetch_client()['Root']
 
         
@@ -1285,6 +1326,39 @@ class PerforceUI:
             logging.info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
+
+import string
+import re
+import platform
+
+# Create workspace
+def createWorkspace(rootPath, nameSuffix = None):
+    spec = p4.fetch_workspace()
+
+    client = "contact_{0}_{1}".format( p4.user, platform.system() )
+    
+    if nameSuffix:
+        client += "_" + nameSuffix
+    
+    spec._client = client
+    spec._root = os.path.join(str(rootPath), spec['Client'] )
+    spec._view = [ '//depot/... //{0}/...'.format(spec['Client']) ]
+
+    p4.client = spec['Client']
+    if platform.system() == "Linux" or platform.system() == "Darwin":
+        os.environ['P4CLIENT'] = p4.client
+    else:
+        p4.set_env('P4CLIENT', p4.client)
+        
+    p4.cwd = spec['Root']
+    
+    logging.info("Creating workspace {0}...".format(client))
+    
+    p4.save_client(spec)
+   
+    logging.info("Syncing new workspace...")
+    p4.run_sync("...")
+    logging.info("Done!")
       
 if __name__ == "__main__":
     try:
@@ -1298,8 +1372,11 @@ if __name__ == "__main__":
     p4.port = PORT
     p4.user = USER
     p4.password = "contact_dev"
+    
+    p4.connect()
 
     ui = PerforceUI(p4)
+    
     ui.addMenu()
 
     #mu.executeDeferred('ui.addMenu()')
