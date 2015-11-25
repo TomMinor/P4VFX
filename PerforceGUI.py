@@ -28,6 +28,10 @@ class P4Icon:
 iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
 tempPath = os.environ['TMPDIR']
 
+def saveEnvironmentVariable( var, value ):
+    os.system('bash -c \'echo "export {0}={1}" >> ~/.bashrc\''.format(var, value))
+    os.system('bash -c \'source ~/.bashrc\'')
+
 def removeReadOnlyBit(files):
     for file in files:
         fileAtt = os.stat(file)[0]
@@ -537,7 +541,7 @@ class FileRevisionUI(QtGui.QDialog):
         self.fileTree.setRootIndex( self.fileTreeModel.index(self.p4.cwd) )
         self.fileTree.setColumnWidth(0, 180)
          
-        headers = [ "Revision", "Action", "Date", "Description" ]
+        headers = [ "Revision", "User", "Action", "Date", "Client", "Description" ]
         
         self.tableWidget = QtGui.QTableWidget()
         self.tableWidget.setColumnCount(len(headers))
@@ -592,8 +596,6 @@ class FileRevisionUI(QtGui.QDialog):
         self.getLatestBtn.clicked.connect( self.onSyncLatest )
         self.getRevisionBtn.clicked.connect( self.onRevertToSelection )
         self.getPreviewBtn.clicked.connect( self.getPreview )
-        
-        self.statusBar.showMessage("Checked out by user kbishop")
         
     #--------------------------------------------------------------------------
     # SLOTS
@@ -665,6 +667,8 @@ class FileRevisionUI(QtGui.QDialog):
         index = self.fileTree.selectedIndexes()[0]
         if not index:
             return
+            
+        self.statusBar.showMessage("")
         
         self.getPreviewBtn.setEnabled(True)
         filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
@@ -681,18 +685,38 @@ class FileRevisionUI(QtGui.QDialog):
         if os.path.isdir(filePath):
             return
         
-        files = p4.run_filelog("-l", filePath )        
+        try:
+            files = p4.run_filelog("-l", filePath )     
+        except P4Exception as e:
+            # TODO - Better error handling here, what if we can't connect etc
+            #eMsg, type = parsePerforceError(e)
+            self.statusBar.showMessage( "{0} isn't on client".format(os.path.basename(filePath)) )
+            self.tableWidget.clearContents()
+            self.getLatestBtn.setEnabled(False)
+            self.getPreviewBtn.setEnabled(False)
+            return
+            
+        self.getLatestBtn.setEnabled(True)
+        self.getPreviewBtn.setEnabled(True)
+        
+        fileInfo = p4.run_opened("-a", filePath)   
+        if fileInfo:
+            self.statusBar.showMessage("{0} currently checked out by {1}".format(os.path.basename(filePath), fileInfo[0]['user']))
+            self.getRevisionBtn.setEnabled(False)
+        else:
+            self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(filePath)))
+            self.getRevisionBtn.setEnabled(True)
 
         # Generate revision dictionary
         self.fileRevisions  = []
-
-        for file in files:
-            file.depotFile
-            for revision in file.revisions:
-                self.fileRevisions .append( { "revision": revision.rev, 
+        
+        for revision in files[0].each_revision():
+            self.fileRevisions.append( { "revision": revision.rev, 
                                         "action": revision.action, 
                                         "date"  : revision.time,
-                                        "desc"  : revision.desc
+                                        "desc"  : revision.desc,
+                                        "user"  : revision.user,
+                                        "client": revision.client
                                         } ) 
 
         self.tableWidget.setRowCount( len(self.fileRevisions ) )
@@ -712,6 +736,22 @@ class FileRevisionUI(QtGui.QDialog):
             layout.addWidget( label )
             layout.setAlignment(QtCore.Qt.AlignCenter)
             layout.setContentsMargins(0,0,0,0)
+            widget.setLayout(layout)
+            
+            self.tableWidget.setCellWidget(i, column, widget)
+            column += 1
+            
+            # User
+            user = revision['user']
+            
+            widget = QtGui.QWidget()
+            layout = QtGui.QHBoxLayout()
+            label = QtGui.QLabel(str(user))
+            label.setStyleSheet( "QLabel { border: none } " )
+            
+            layout.addWidget( label )
+            layout.setAlignment(QtCore.Qt.AlignCenter)
+            layout.setContentsMargins( 4, 0, 4, 0)
             widget.setLayout(layout)
             
             self.tableWidget.setCellWidget(i, column, widget)
@@ -764,6 +804,24 @@ class FileRevisionUI(QtGui.QDialog):
             self.tableWidget.setCellWidget(i, column, widget)
             column += 1
             
+                        
+            # Client
+            client = revision['client']
+            
+            widget = QtGui.QWidget()
+            layout = QtGui.QHBoxLayout()
+            label = QtGui.QLabel(str(client))
+            label.setStyleSheet( "QLabel { border: none } " )
+            
+            layout.addWidget( label )
+            layout.setAlignment(QtCore.Qt.AlignCenter)
+            layout.setContentsMargins( 4, 0, 4, 0)
+
+            widget.setLayout(layout)
+            
+            self.tableWidget.setCellWidget(i, column, widget)
+            column += 1
+            
             
             # Description
             desc = revision['desc']
@@ -786,6 +844,7 @@ class FileRevisionUI(QtGui.QDialog):
         
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.resizeRowsToContents()
+        self.tableWidget.setColumnWidth(4, 90)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
 
 
@@ -920,8 +979,15 @@ def syncPreviousRevision(file, revision, description):
     if m:
         changeId = m.group(1)
 
+    # Terrible exception handling but I need all the info I can for this to be artist proof
     try:
         errors = []
+        
+        # Try to remove from changelist if we have it checked out
+        try:
+            logging.info( p4.run_revert("-k", file) )
+        except P4Exception as e:
+            errors.append(e)
         
         try:
             logging.info( p4.run_edit("-c", changeId, file) )
@@ -1101,11 +1167,32 @@ class PerforceUI:
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=False, label="Preferences")
-        cmds.menuItem(label="Login",                        image = os.path.join(iconPath, "File0077.png"), command = "print('Login')", en=False              )
+        cmds.menuItem(label="Reconnect to server",          image = os.path.join(iconPath, "File0077.png"), command = self.reconnect              )
         cmds.menuItem(label="Change Password",              image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')", en=False    )
         cmds.menuItem(label="Server Info",                  image = os.path.join(iconPath, "File0031.png"), command = "print('Server Info')", en=False        )
         #cmds.menuItem(label="Perforce Help",                command = "print(`Perforce Help`)"      )
         
+
+    def reconnect(self, *args):
+        try:
+            self.p4.connect()
+            
+            usernameInputDialog = QtGui.QInputDialog;
+            username = usernameInputDialog.getText( mainParent, "Enter username", "Username:" )
+            
+            passwordInputDialog = QtGui.QInputDialog;
+
+            password = passwordInputDialog.getText( mainParent, "Enter password", "Password:")
+            
+            if username:
+                self.p4.user = username[0]
+                
+            if password:
+                self.p4.passwd = password[0]
+            
+            self.p4.run_login("-a")
+        except P4Exception as e:
+            displayErrorUI(e)
 
     # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
@@ -1358,6 +1445,7 @@ def createWorkspace(rootPath, nameSuffix = None):
     p4.client = spec['Client']
     if platform.system() == "Linux" or platform.system() == "Darwin":
         os.environ['P4CLIENT'] = p4.client
+        saveEnvironmentVariable("P4CLIENT", p4.client)
     else:
         p4.set_env('P4CLIENT', p4.client)
         
@@ -1371,24 +1459,28 @@ def createWorkspace(rootPath, nameSuffix = None):
     p4.run_sync("...")
     logging.info("Done!")
       
+
+ui = None
+
+def init():
+	try:
+		cmds.deleteUI(ui.perforceMenu)
+	except:
+		pass
+
+	#PORT = "ssl:52.17.163.3:1666"
+	#USER = "tminor"
+	p4 = P4()
+	#p4.port = PORT
+	#p4.user = USER
+	p4.password = "contact_dev"
+
+	ui = PerforceUI(p4)
+
+	#ui.addMenu()
+
+	mu.executeDeferred('ui.addMenu()')
+
 if __name__ == "__main__":
-    try:
-        cmds.deleteUI(ui.perforceMenu)
-    except:
-        pass
-
-    PORT = "ssl:52.17.163.3:1666"
-    USER = "tminor"
-    p4 = P4()
-    p4.port = PORT
-    p4.user = USER
-    p4.password = "contact_dev"
-    
-    p4.connect()
-
-    ui = PerforceUI(p4)
-    
-    ui.addMenu()
-
-    #mu.executeDeferred('ui.addMenu()')
+    init()
 
