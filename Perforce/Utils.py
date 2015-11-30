@@ -8,6 +8,7 @@ import platform
 import sys
 import logging
 import stat
+import fileinput
 
 from P4 import P4, P4Exception
 
@@ -71,6 +72,27 @@ def inDirectory(file, directory):
 
 #============================= Perforce Procedures ===========================
 
+def writeToP4Config(config, key, value):
+    found = False
+    fileinput.close()
+    
+    for line in fileinput.input(config, inplace=True):
+        result = line
+        resultSplit = line.split("=")
+        
+        if len(resultSplit) == 2:
+            _key, _value = resultSplit
+            if _key == key:
+                result = "{0}={1}\n".format( key, value )
+                found = True
+                
+        print result,
+        
+    if not found:
+        with open(config, "a") as file:
+            file.write( "{0}={1}\n".format( key, value ) )
+
+
 def isPathInClientRoot(p4, path):
     if inDirectory(path, p4.cwd):
         return True
@@ -116,10 +138,7 @@ def parsePerforceError(e):
     return eMsg, type
 
 def submitChange(p4, files, description, keepCheckedOut = False):
-    #change = p4.fetch_change()
-
-    #change._description = description    
-    
+    # Shitty method #1
     p4_logger.info("Files Passed for submission = {0}".format(files))
     
     fullChangelist = p4.run_opened("-u", p4.user, "-C", p4.client, "...")
@@ -157,17 +176,21 @@ def submitChange(p4, files, description, keepCheckedOut = False):
         p4_logger.warning(e)
         raise e
 
-    #change._files = [ x['clientFile'] for x in opened ]
+    # change = p4.fetch_change()
 
-    #try:
-    #    if keepCheckedOut:
-    #        result = p4.run_submit(change, "-r")
-    #    else:
-    #        result = p4.run_submit(change)
-    #    p4_logger.info(result)
-    #except P4Exception as e:
-    #    p4_logger.warning(e)
-    #    raise e
+    # change._description = description    
+
+    # change._files = changeFile
+
+    # try:
+    #     if keepCheckedOut:
+    #         result = p4.run_submit(change, "-r")
+    #     else:
+    #         result = p4.run_submit(change)
+    #     p4_logger.info(result)
+    # except P4Exception as e:
+    #     p4_logger.warning(e)
+    #     raise e
 
 def syncPreviousRevision(p4, file, revision, description):
     p4_logger.info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
@@ -259,11 +282,15 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
     spec._view = [ '//depot/... //{0}/...'.format(spec['Client']) ]
 
     p4.client = spec['Client']
+
+    # REALLY make sure we save the P4CLIENT variable
     if platform.system() == "Linux" or platform.system() == "Darwin":
         os.environ['P4CLIENT'] = p4.client
         saveEnvironmentVariable("P4CLIENT", p4.client)
     else:
         p4.set_env('P4CLIENT', p4.client)
+
+    writeToP4Config(p4.p4config_file, "P4CLIENT", p4.client)
         
     p4.cwd = spec['Root']
     

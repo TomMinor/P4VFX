@@ -2,6 +2,7 @@ import stat
 import os, sys, re
 import traceback
 import logging
+import platform
 
 from PySide import QtCore
 from PySide import QtGui
@@ -30,11 +31,11 @@ def displayErrorUI(e):
     eMsg, type = Utils.parsePerforceError(e)
     
     if type == "warning":
-        error_ui.warning(mainParent, "Submit Warning", eMsg)
+        error_ui.warning(mainParent, "Perforce Warning", eMsg)
     elif type == "error":
-        error_ui.critical(mainParent, "Submit Error", eMsg)
+        error_ui.critical(mainParent, "Perforce Error", eMsg)
     else:
-        error_ui.information(mainParent, "Submit Error", eMsg)
+        error_ui.information(mainParent, "Perforce Error", eMsg)
         
     error_ui.deleteLater()  
 
@@ -640,12 +641,23 @@ class FileRevisionUI(QtGui.QDialog):
         self.getLatestBtn.setEnabled(True)
         self.getPreviewBtn.setEnabled(True)
         
-        fileInfo = self.p4.run_opened("-a", filePath)   
-        if fileInfo:
-            self.statusBar.showMessage("{0} currently checked out by {1}@{2}".format(os.path.basename(filePath), fileInfo[0]['user'], fileInfo[0]['client']))
-            if fileInfo[0]['user'] != self.p4.user:
-                self.getRevisionBtn.setEnabled(False)
-        else:
+        try:
+            fileInfo = self.p4.run_fstat(filePath)   
+            print fileInfo
+            if fileInfo:
+                if 'otherLock' in fileInfo[0]:
+                    self.statusBar.showMessage("{0} currently locked by {1}".format(os.path.basename(filePath), fileInfo[0]['otherLock'][0] ))
+                    if fileInfo[0]['otherLock'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                elif 'otherOpen' in fileInfo[0]:
+                    self.statusBar.showMessage("{0} currently opened by {1}".format(os.path.basename(filePath), fileInfo[0]['otherOpen'][0] ))
+                    if fileInfo[0]['otherOpen'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                else:
+                    self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(os.path.basename(filePath),  self.p4.user, self.p4.client) )
+                    self.getRevisionBtn.setEnabled(True)
+
+        except P4Exception as e:
             self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(filePath)))
             self.getRevisionBtn.setEnabled(True)
 
@@ -797,43 +809,23 @@ class PerforceUI:
         
         self.p4 = p4
         self.p4.connect()
-        
-        # Validate SSH Login / Attempt to login
-        try:
-            self.p4.run_login("-a")
-        except P4Exception as e:
-            regexKey = re.compile(ur'(?:[0-9a-fA-F]:?){40}')
-            #regexIP = re.compile(ur'[0-9]+(?:\.[0-9]+){3}?:[0-9]{4}')
-            errorMsg = str(e).replace('\\n', ' ')
-            
-            key = re.findall(regexKey, errorMsg)
-            #ip = re.findall(regexIP, errorMsg)
-            
-            if key:
-                self.p4.run_trust("-i", key[0])
-                self.p4.run_login("-a")
-            else:
-                raise e
+
+        self.firstTimeLogin( enterUsername = self.p4.user is None, enterPassword = self.p4.password is None )
 
         # Validate workspace
         try:
             self.p4.cwd = self.p4.run_info()[0]['clientRoot']
-        except:
+        except P4Exception as e:
+            displayErrorUI(e)
+        except KeyError as e:
             print "No workspace found, creating default one"
-            workspaceRoot = None
-            while not workspaceRoot:
-                workspaceRoot = QtGui.QFileDialog.getExistingDirectory( AppUtils.main_parent_window(), "Specify workspace root folder")
-            try:
-                workspaceSuffixDialog = QtGui.QInputDialog
-                workspaceSuffix = workspaceSuffixDialog.getText( mainParent, "Workspace", "Optional Name Suffix (e.g. Uni, Home):" )
-
-                Utils.createWorkspace(self.p4, workspaceRoot, workspaceSuffix)
-            except P4Exception as e:
-                displayErrorUI(e)
-                raise e
+            self.createWorkspace()
 
         self.p4.cwd = self.p4.fetch_client()['Root']
 
+    def __del__(self):
+        p4_logger.info("Disconnecting from server")
+        self.p4.disconnect()
         
     def addMenu(self):
         try:
@@ -855,6 +847,10 @@ class PerforceUI:
         cmds.menuItem(label="Checkout File(s)",                     image = os.path.join(iconPath, "File0078.png"), command = self.checkoutFile )
         cmds.menuItem(label="Mark for Delete",                      image = os.path.join(iconPath, "File0253.png"), command = self.deleteFile               )
         cmds.menuItem(label="Show Changelist",                      image = os.path.join(iconPath, "File0252.png"), command = self.queryOpened              )
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label="Create Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.createWorkspace  )
+        cmds.menuItem(label="Set Current Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.setCurrentWorkspace  )
+
         #cmds.menuItem(divider=True)
         #self.lockFile = cmds.menuItem(label="Lock This File",       image = os.path.join(iconPath, "File0143.png"), command = self.lockThisFile                 )
         #self.unlockFile = cmds.menuItem(label="Unlock This File",   image = os.path.join(iconPath, "File0252.png"), command = self.unlockThisFile, en=False     )
@@ -870,36 +866,106 @@ class PerforceUI:
         
         cmds.menuItem(label = "Scene", divider=True)
         cmds.menuItem(label="File Status",                          image = os.path.join(iconPath, "File0409.png"), command = self.querySceneStatus       )
-
-        cmds.menuItem(label = "Debug", divider=True)
-        cmds.menuItem(label="Delete all pending changes",                      image = os.path.join(iconPath, "File0252.png"), command = self.deletePending              )
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=False, label="Preferences")
-        cmds.menuItem(label="Reconnect to server",                  image = os.path.join(iconPath, "File0077.png"), command = self.reconnect              )
-        cmds.menuItem(label="Change Password",                      image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
-        cmds.menuItem(label="Server Info",                          image = os.path.join(iconPath, "File0031.png"),  command = self.queryServerStatus     )
+        cmds.menuItem(label="Login as user",                            image = os.path.join(iconPath, "File0077.png"), command = self.loginAsUser              )
+        cmds.menuItem(label="Change Password",                     image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
+        cmds.menuItem(label="Server Info",                               image = os.path.join(iconPath, "File0031.png"),  command = self.queryServerStatus     )
+        cmds.menuItem(label = "Debug", divider=True)
+        cmds.menuItem(label="Delete all pending changes",                      image = os.path.join(iconPath, "File0280.png"), command = self.deletePending              )
         
+    def changePasswd(self, *args):
+        pass
 
-    def reconnect(self, *args):
-        try:
-            self.p4.connect()
-            
+    def loginAsUser(self, *args):
+        self.firstTimeLogin(enterUsername = True, enterPassword = True)
+
+    def firstTimeLogin(self, enterUsername = True, enterPassword = True, *args):
+        username = None
+        password = None
+
+        if enterUsername:
             usernameInputDialog = QtGui.QInputDialog;
             username = usernameInputDialog.getText( mainParent, "Enter username", "Username:" )
-            
+        
+            if not username[1]:
+                raise ValueError("Invalid username")
+
+            self.p4.user = str(username[0])
+
+        if enterPassword:
             passwordInputDialog = QtGui.QInputDialog;
             password = passwordInputDialog.getText( mainParent, "Enter password", "Password:")
+
+            if not password[1]:
+                raise ValueError("Invalid password")
+        
+            self.p4.password = str(password[0])
+
+        # Validate SSH Login / Attempt to login
+        try:
+            p4_logger.info(self.p4.run_login("-a"))
+        except P4Exception as e:
+            regexKey = re.compile(ur'(?:[0-9a-fA-F]:?){40}')
+            #regexIP = re.compile(ur'[0-9]+(?:\.[0-9]+){3}?:[0-9]{4}')
+            errorMsg = str(e).replace('\\n', ' ')
             
-            if username:
-                self.p4.user = username[0]
-                
-            if password:
-                self.p4.passwd = password[0]
+            key = re.findall(regexKey, errorMsg)
+            #ip = re.findall(regexIP, errorMsg)
             
-            self.p4.run_login("-a")
+            if key:
+                p4_logger.info(self.p4.run_trust("-i", key[0]))
+                p4_logger.info(self.p4.run_login("-a"))
+            else:
+                raise e
+
+        if username:
+            Utils.writeToP4Config(self.p4.p4config_file, "P4USER", str(username[0]) ) 
+        if password:
+            Utils.writeToP4Config(self.p4.p4config_file, "P4PASSWD", str(password[0]) )
+
+    def setCurrentWorkspace(self, *args):
+        workspacePath = QtGui.QFileDialog.getExistingDirectory( mainParent, "Select existing workspace"  )
+
+        for client in self.p4.run_clients():
+            if workspacePath == client['Root']:
+                root, client = os.path.split( str(workspacePath) )
+                self.p4.client = client
+
+                p4_logger.info("Setting current client to {0}".format(client))
+                # REALLY make sure we save the P4CLIENT variable
+                if platform.system() == "Linux" or platform.system() == "Darwin":
+                    os.environ['P4CLIENT'] = self.p4.client
+                    Utils.saveEnvironmentVariable("P4CLIENT", self.p4.client)
+                else:
+                    self.p4.set_env('P4CLIENT', self.p4.client)
+
+                Utils.writeToP4Config(self.p4.p4config_file, "P4CLIENT", self.p4.client)
+                break
+        else:
+            QtGui.QMessageBox.warning(mainParent, "Perforce Error", "{0} is not a workspace root".format(workspacePath))
+            
+
+
+    def createWorkspace(self, *args):
+        workspaceRoot = None
+        i = 0
+        while  i < 3 :
+            workspaceRoot = QtGui.QFileDialog.getExistingDirectory( AppUtils.main_parent_window(), "Specify workspace root folder")
+            i += 1
+            if workspaceRoot:
+                break
+        else:
+            raise IOError("Can't set workspace")
+        try:
+            workspaceSuffixDialog = QtGui.QInputDialog
+            workspaceSuffix = workspaceSuffixDialog.getText( mainParent, "Workspace", "Optional Name Suffix (e.g. Uni, Home):" )
+
+            Utils.createWorkspace(self.p4, workspaceRoot, str(workspaceSuffix[0]))
         except P4Exception as e:
             displayErrorUI(e)
+            raise e
 
     # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
@@ -963,8 +1029,11 @@ class PerforceUI:
                 
             try:
                 if result:
-                    p4_logger.info(self.p4.run_edit(file))
-                    p4_logger.info(self.p4.run_lock(file))
+                    if 'otherLock' in result[0]:
+                        raise P4Exception("[Warning]: Already locked by {0}\"".format( result[0]['otherLock'][0] ))
+                    else:
+                        p4_logger.info(self.p4.run_edit(file))
+                        p4_logger.info(self.p4.run_lock(file))
                 else:
                     p4_logger.info(self.p4.run_add(file))
                     p4_logger.info(self.p4.run_lock(file))
@@ -1142,16 +1211,19 @@ def init():
     except:
         pass
 
-    PORT = "ssl:52.17.163.3:1666"
-    USER = "tminor"
+    #PORT = "ssl:52.17.163.3:1666"
+    #USER = "tminor"
     p4 = P4()
-    p4.port = PORT
-    p4.user = USER
-    p4.password = "contact_dev"
+    #p4.port = PORT
+    #p4.user = USER
+    #p4.password = "contact_dev"
 
-    ui = PerforceUI(p4)
+    try:
+        ui = PerforceUI(p4)
 
-    ui.addMenu()
+        ui.addMenu()
+    except ValueError as e:
+        p4_logger.critical(e)
 
     #mu.executeDeferred('ui.addMenu()')
 
