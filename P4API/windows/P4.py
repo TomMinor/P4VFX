@@ -7,7 +7,7 @@ from __future__ import print_function
     This uses the Python type P4API.P4Adapter, which is a wrapper for the
     Perforce ClientApi object.
     
-    $Id: //depot/r15.1/p4-python/P4.py#1 $
+    $Id: //depot/p14.2/p4-python/P4.py#1 $
     
     #*******************************************************************************
     # Copyright (c) 2007-2010, Perforce Software, Inc.  All rights reserved.
@@ -48,8 +48,7 @@ import re
 import shutil
 from contextlib import contextmanager
 import uuid, tempfile
-import os, os.path, platform
-import subprocess
+import os
 
 # P4Exception - some sort of error occurred
 class P4Exception(Exception):
@@ -605,7 +604,7 @@ class P4(P4API.P4Adapter):
                 break
         return self.run("submit", *nargs, **kargs)
     
-    def run_shelve(self, *args, **kargs):
+    def run_shelve(self, *args):
         "Simplified shelve - if any arguments is a dict, assume it to be the changeform"
         nargs = list(args)
         form = None
@@ -615,15 +614,15 @@ class P4(P4API.P4Adapter):
                 nargs.pop(n)
                 nargs.append("-i")
                 break
-        return self.run("shelve", *nargs, **kargs)
+        return self.run("shelve", *nargs)
     
-    def delete_shelve(self, *args, **kargs):
+    def delete_shelve(self, *args):
         "Simplified deletion of shelves - if no -c is passed in, add it to the args"
         nargs = list(args)
         if '-c' not in nargs:
             nargs = ['-c'] + nargs # prepend -c if it is not there
         nargs = ['-d'] + nargs
-        return self.run("shelve", *nargs, **kargs)
+        return self.run("shelve", *nargs)
     
     def run_login(self, *args):
         "Simple interface to make login easier"
@@ -636,13 +635,8 @@ class P4(P4API.P4Adapter):
             self.input = [ oldpass, newpass, newpass ]
         else:
             self.input = [ newpass, newpass ]
-        
-        try:
-            return self.run( "password" )
-        except P4Exception as e:
-            if self.errors and self.errors[0] == "Passwords don't match.":
-                raise P4Exception("Password invalid.")
-
+    
+        return self.run( "password" )
 
     #
     # run_filelog: convert "p4 filelog" responses into objects with useful
@@ -739,12 +733,6 @@ class P4(P4API.P4Adapter):
         keys = [ "Host", "User", "Ticket" ]
         result = [ dict(zip(keys, x)) for x in tickets ]
         return result
-    
-    def run_init(self, *args, **kargs):
-        raise Exception("Please run P4.init() instead")
-        
-    def run_clone(self, *args, **kargs):
-        raise Exception("Please run P4.clone) instead")
     
     def __flatten(self, args):
         result = []
@@ -894,130 +882,6 @@ class Map(P4API.P4Map):
             left = args[0].strip()
             right = args[1].strip()
             P4API.P4Map.insert(self, left, right )
-
-
-def init(*args, **kargs):
-    return __run_dvcs("init", args, **kargs)
-
-def clone(*args, **kargs):
-    return __run_dvcs("clone", args, **kargs)
-
-def __run_dvcs(cmd, *args, **kargs):
-    __check_paths()
-    options = []
-    
-    def add_option(options, name, opt):
-        if name in kargs:
-            options += [opt, kargs[name]]
-    
-    add_option(options, "client","-c")
-    add_option(options, "directory","-d")
-    add_option(options, "user", "-u")
-        
-    named_args = []
-    
-    if "unicode" in kargs:
-        unicode = kargs["unicode"]
-        del kargs["unicode"]
-        if unicode:
-            named_args.append("-xi")
-        else:
-            named_args.append("-n")
-    
-    if "casesensitive" in kargs:
-        casesensitive = kargs["casesensitive"]
-        del kargs["casesensitive"]
-        if casesensitive:
-            named_args.append("-C1")
-        else:
-            named_args.append("-C0")
-    
-    arguments = [ "p4" ]
-    arguments += options
-    arguments += [ cmd ]
-    arguments += named_args 
-    for a in args:
-        arguments += a
-    
-    p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (sout,serr) = (p.stdout, p.stderr)
-    results = sout.read()
-    errors = serr.read()
-    sout.close()
-    serr.close()
-    
-    if errors:
-        if type(errors) == bytes:
-            errors = errors.decode('UTF-8')
-        errors = errors.strip()
-        
-        raise Exception("Cmd '{}' raised\n{}".format(" ".join(arguments), errors))
-    
-    if type(results) == bytes:
-        results = results.decode('UTF-8')
-    
-    # this is where we analyze the outcome of the command
-    # move into the resulting directory (if specified)
-    # then create a P4 object and return that (connected??)
-    
-    results = results.strip()
-    
-    if "directory" in kargs:
-        path = os.path.abspath(kargs["directory"])
-        os.chdir(path)
-        os.environ["PWD"] = path
-        
-    # create a copy of kargs without the "directory" key - make it compatible with Python 2.6
-    # new_kargs = { x:kargs[x] for x in kargs if x != "directory" }
-    new_kargs = dict((x,kargs[x]) for x in kargs if x != "directory" )
-    
-    return P4(**new_kargs)
-    
-def __check_paths():
-    if not __exec_exists("p4"):
-        raise Exception("P4 executable not in path")
-    if not __exec_exists("p4d"):
-        raise Exception("P4D executable not in path")
-    
-def __exec_exists(name):
-    execName = name
-    if platform.system() == "Windows":
-        execName += ".exe"
-    
-    for p in os.environ["PATH"].split(os.pathsep):
-        pathToFile = os.path.join(p, execName)
-        if os.path.exists(pathToFile) and os.access(pathToFile, os.X_OK):
-            return __check_version(pathToFile)
-    return False
-    
-def __check_version(pathToFile):
-    p = subprocess.Popen([pathToFile,'-V'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (sout,serr) = (p.stdout, p.stderr)
-    
-    output = sout.read()
-    error = serr.read()
-
-    sout.close()
-    serr.close()
-    
-    if type(output) == bytes: # Python 3 output is bytes, not str
-        output = output.decode('UTF-8')
-    chunks = output.split(os.linesep)
-    
-    pattern = re.compile("Rev. (?P<Program>.+)/(?P<Platform>.+)/(?P<Release>.+)/(?P<Patch>\d+) \((\d+/\d+/\d+)\).")
-    
-    for c in chunks:
-        match = pattern.match(c)
-        if match:
-            version = match.group('Release')
-            year = int(version.split('.')[0])
-            if year >= 2015:
-                return True
-            else:
-                program = match.group('Program')
-                raise Exception("{} must be at least 2015.1, not {}".format(program, version))
-
-    raise Exception("Unknown P4 output : {}".format(output) )
 
 if __name__ == "__main__":
     p4 = P4()

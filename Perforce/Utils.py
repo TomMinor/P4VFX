@@ -11,6 +11,8 @@ import stat
 
 from P4 import P4, P4Exception
 
+p4_logger = logging.getLogger("Perforce")
+
 #============================= Filesystem Procedures ===========================
 
 def saveEnvironmentVariable( var, value ):
@@ -73,7 +75,7 @@ def isPathInClientRoot(p4, path):
     if inDirectory(path, p4.cwd):
         return True
     else:
-        logging.warning("{0} not in client root".format(path))
+        p4_logger.warning("{0} not in client root".format(path))
         return False
 
 
@@ -86,7 +88,7 @@ def queryChangelists( p4, status = None):
     try:
         return p4.run(args)
     except P4Exception as e:
-        logging.warning(e)
+        p4_logger.warning(e)
         raise e
 
 def parsePerforceError(e):
@@ -118,7 +120,7 @@ def submitChange(p4, files, description, keepCheckedOut = False):
 
     #change._description = description    
     
-    logging.info("Files Passed for submission = {0}".format(files))
+    p4_logger.info("Files Passed for submission = {0}".format(files))
     
     fullChangelist = p4.run_opened("-u", p4.user, "-C", p4.client, "...")
 
@@ -127,31 +129,32 @@ def submitChange(p4, files, description, keepCheckedOut = False):
    
     changeFiles = [ entry['clientFile'] for entry in opened ]# change._files
 
-    logging.info("Changelist = {0}".format(changeFiles))
+    p4_logger.info("Changelist = {0}".format(changeFiles))
 
     for changeFile in changeFiles:
         if changeFile in files:
             fileList.append(changeFile)
         else:
-            logging.warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
+            p4_logger.warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
             
-    logging.info("Final changelist files = {0}".format(fileList)) 
+    p4_logger.info("Final changelist files = {0}".format(fileList)) 
 
     print [ x['clientFile'] for x in fullChangelist ]
     print [ x['clientFile'] for x in opened ]
 
     notSubmitted = list(set( [ x['clientFile'] for x in fullChangelist ] ) - set( [ x['clientFile'] for x in opened ] ))
 
-    p4.run_revert("-k", notSubmitted)
+    if notSubmitted:
+        p4.run_revert("-k", notSubmitted)
 
     try:
         if keepCheckedOut:
             result = p4.run_submit("-r", "-d", description)
         else:
             result = p4.run_submit("-d", description)
-        logging.info(result)
+        p4_logger.info(result)
     except P4Exception as e:
-        logging.warning(e)
+        p4_logger.warning(e)
         raise e
 
     #change._files = [ x['clientFile'] for x in opened ]
@@ -161,13 +164,13 @@ def submitChange(p4, files, description, keepCheckedOut = False):
     #        result = p4.run_submit(change, "-r")
     #    else:
     #        result = p4.run_submit(change)
-    #    logging.info(result)
+    #    p4_logger.info(result)
     #except P4Exception as e:
-    #    logging.warning(e)
+    #    p4_logger.warning(e)
     #    raise e
 
 def syncPreviousRevision(p4, file, revision, description):
-    logging.info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
+    p4_logger.info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
 
     change = p4.fetch_change()
     change._description = description
@@ -185,22 +188,22 @@ def syncPreviousRevision(p4, file, revision, description):
         
         # Try to remove from changelist if we have it checked out
         try:
-            logging.info( p4.run_revert("-k", file) )
+            p4_logger.info( p4.run_revert("-k", file) )
         except P4Exception as e:
             errors.append(e)
         
         try:
-            logging.info( p4.run_edit("-c", changeId, file) )
+            p4_logger.info( p4.run_edit("-c", changeId, file) )
         except P4Exception as e:
             errors.append(e)
             
         try:
-            logging.info( p4.run_sync("-f", file) )
+            p4_logger.info( p4.run_sync("-f", file) )
         except P4Exception as e:
             errors.append(e)
         
         try:
-            logging.info( p4.run_resolve("-ay") )
+            p4_logger.info( p4.run_resolve("-ay") )
         except P4Exception as e:
             errors.append(e)
 
@@ -210,7 +213,7 @@ def syncPreviousRevision(p4, file, revision, description):
             errors.append(e)
             
         try:
-            logging.info( p4.run_submit(change) )
+            p4_logger.info( p4.run_submit(change) )
         except P4Exception as e:
             errors.append(e)
         
@@ -228,19 +231,19 @@ def forceChangelistDelete(p4, lists):
             isClient = (list['client'] == p4.client)
             
             if isUser and isClient:
-                logging.info("Deleting change {0} on client {1}".format(list['change'], list['client']))
+                p4_logger.info("Deleting change {0} on client {1}".format(list['change'], list['client']))
                 try:
                 	p4.run_unlock("-c", list['change'])
                 	p4.run_revert("-c", list['change'], "...")
             	except P4Exception as e:
             		pass
-                logging.info(p4.run_change("-d", list['change']))
+                p4_logger.info(p4.run_change("-d", list['change']))
             if not isUser:
-                logging.warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
+                p4_logger.warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
             if not isClient:
-                logging.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
+                p4_logger.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
         except P4Exception as e:
-            logging.critical(e)
+            p4_logger.critical(e)
 
 # Create workspace
 def createWorkspace(p4, rootPath, nameSuffix = None):
@@ -264,10 +267,10 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
         
     p4.cwd = spec['Root']
     
-    logging.info("Creating workspace {0}...".format(client))
+    p4_logger.info("Creating workspace {0}...".format(client))
     
     p4.save_client(spec)
    
-    logging.info("Syncing new workspace...")
+    p4_logger.info("Syncing new workspace...")
     p4.run_sync("...")
-    logging.info("Done!")
+    p4_logger.info("Done!")

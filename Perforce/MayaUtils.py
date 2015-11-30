@@ -1,4 +1,5 @@
 import os
+import logging
 
 import maya.mel
 import maya.utils as mu
@@ -9,7 +10,14 @@ from shiboken import wrapInstance
 from PySide import QtCore
 from PySide import QtGui
 
-iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/images/"
+import GlobalVars
+reload(GlobalVars)
+
+p4_logger = logging.getLogger("Perforce")
+
+# Hacky way to load our icons, I don't fancy wrestling with resource files
+GlobalVars.iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/Perforce/images/"
+print GlobalVars.iconPath
 
 def main_parent_window():
     main_window_ptr = omui.MQtUtil.mainWindow()

@@ -1,37 +1,27 @@
-import logging
 import stat
 import os, sys, re
 import traceback
-
-# Import app specific utilities, maya opens scenes differently than nuke etc
-# Are we in maya or nuke?
-if re.match( "maya", os.path.basename( sys.executable ), re.I ):
-    import MayaUtils as AppUtils
-    reload(AppUtils)
-elif re.match( "nuke", os.path.basename( sys.executable ), re.I ):
-    import NukeUtils as AppUtils
-    reload(AppUtils)
-
-
-import Utils
-reload(Utils)
-
-from P4 import P4, P4Exception
+import logging
 
 from PySide import QtCore
 from PySide import QtGui
 
+from P4 import P4, P4Exception
 
-class P4Icon:
-    addFile = "File0242.png"    
-    editFile = "File0440.png"
-    deleteFile = "File0253.png"
+import Utils
+reload(Utils)
+import AppUtils
+reload(AppUtils)
+import GlobalVars
+reload(GlobalVars)
 
 mainParent = AppUtils.main_parent_window()
 
-# Hacky way to load our icons, I don't fancy wrestling with resource files
-iconPath = AppUtils.iconPath
-tempPath = os.environ['TMPDIR']
+iconPath = GlobalVars.iconPath
+tempPath = GlobalVars.tempPath
+P4Icon = GlobalVars.P4Icon
+
+p4_logger = logging.getLogger("Perforce")
 
 def displayErrorUI(e):
     error_ui = QtGui.QMessageBox()
@@ -56,7 +46,7 @@ class SubmitChangeUi(QtGui.QDialog):
     def create(self, p4, files = [] ):
         self.p4 = p4
         
-        path = iconPath + "p4.png"
+        path = iconPath + P4Icon.iconName
         icon = QtGui.QIcon(path)
         
         self.setWindowTitle("Submit Change")
@@ -244,7 +234,7 @@ class OpenedFilesUI(QtGui.QDialog):
     def create(self, p4, files = [] ):
         self.p4 = p4
         
-        path = iconPath + "p4.png"
+        path = iconPath + P4Icon.iconName
         icon = QtGui.QIcon(path)
         
         self.setWindowTitle("Changelist : Opened Files")
@@ -327,7 +317,7 @@ class OpenedFilesUI(QtGui.QDialog):
         depotFile = os.path.join(filePath, fileName)
         
         try:
-            logging.info( self.p4.run_revert("-k", depotFile) )
+            p4_logger.info( self.p4.run_revert("-k", depotFile) )
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -341,10 +331,7 @@ class OpenedFilesUI(QtGui.QDialog):
         
         depotFile = os.path.join(filePath, fileName)
         
-        if Utils.queryFileExtension(depotFile, ['.ma', '.mb']):
-            self.openSelectedBtn.setEnabled(True)
-        else:
-            self.openSelectedBtn.setEnabled(False)
+        self.openSelectedBtn.setEnabled(True)
             
         self.revertFileBtn.setEnabled(True)
     
@@ -359,7 +346,11 @@ class OpenedFilesUI(QtGui.QDialog):
         try:
             result = self.p4.run_fstat(depotFile)[0]
             clientFile = result['clientFile']
-            AppUtils.openScene(clientFile)
+
+            if Utils.queryFileExtension(depotFile, ['.ma', '.mb']):
+                AppUtils.openScene(clientFile)
+            else:
+                Utils.open_file(clientFile)
         except P4Exception as e:
             displayErrorUI(e)
         
@@ -458,7 +449,7 @@ class FileRevisionUI(QtGui.QDialog):
     def create(self, p4, files = [] ):
         self.p4 = p4
         
-        path = iconPath + "p4.png"
+        path = iconPath + P4Icon.iconName
         icon = QtGui.QIcon(path)
         
         self.setWindowTitle("File Revisions")
@@ -567,7 +558,7 @@ class FileRevisionUI(QtGui.QDialog):
         try:
             tmpPath = path
             self.p4.run_print("-o", tmpPath, "{0}#{1}".format(filePath, revision))
-            logging.info("Synced preview to {0} at revision {1}".format(tmpPath, revision))
+            p4_logger.info("Synced preview to {0} at revision {1}".format(tmpPath, revision))
             if self.isSceneFile:
                 AppUtils.openScene(tmpPath)
             else:
@@ -608,7 +599,7 @@ class FileRevisionUI(QtGui.QDialog):
         
         try:
             self.p4.run_sync("-f", filePath)
-            logging.info("{0} synced to latest version".format(filePath))
+            p4_logger.info("{0} synced to latest version".format(filePath))
             self.loadFileLog()
         except P4Exception as e:
             displayErrorUI(e)
@@ -651,8 +642,9 @@ class FileRevisionUI(QtGui.QDialog):
         
         fileInfo = self.p4.run_opened("-a", filePath)   
         if fileInfo:
-            self.statusBar.showMessage("{0} currently checked out by {1}".format(os.path.basename(filePath), fileInfo[0]['user']))
-            self.getRevisionBtn.setEnabled(False)
+            self.statusBar.showMessage("{0} currently checked out by {1}@{2}".format(os.path.basename(filePath), fileInfo[0]['user'], fileInfo[0]['client']))
+            if fileInfo[0]['user'] != self.p4.user:
+                self.getRevisionBtn.setEnabled(False)
         else:
             self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(filePath)))
             self.getRevisionBtn.setEnabled(True)
@@ -832,7 +824,10 @@ class PerforceUI:
             while not workspaceRoot:
                 workspaceRoot = QtGui.QFileDialog.getExistingDirectory( AppUtils.main_parent_window(), "Specify workspace root folder")
             try:
-                Utils.createWorkspace(workspaceRoot, "")
+                workspaceSuffixDialog = QtGui.QInputDialog
+                workspaceSuffix = workspaceSuffixDialog.getText( mainParent, "Workspace", "Optional Name Suffix (e.g. Uni, Home):" )
+
+                Utils.createWorkspace(self.p4, workspaceRoot, workspaceSuffix)
             except P4Exception as e:
                 displayErrorUI(e)
                 raise e
@@ -875,12 +870,15 @@ class PerforceUI:
         
         cmds.menuItem(label = "Scene", divider=True)
         cmds.menuItem(label="File Status",                          image = os.path.join(iconPath, "File0409.png"), command = self.querySceneStatus       )
+
+        cmds.menuItem(label = "Debug", divider=True)
+        cmds.menuItem(label="Delete all pending changes",                      image = os.path.join(iconPath, "File0252.png"), command = self.deletePending              )
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=False, label="Preferences")
         cmds.menuItem(label="Reconnect to server",                  image = os.path.join(iconPath, "File0077.png"), command = self.reconnect              )
         cmds.menuItem(label="Change Password",                      image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
-        cmds.menuItem(label="Server Info",                          image = os.path.join(iconPath, "File0031.png"), command = "print('Server Info')",       en=False    )
+        cmds.menuItem(label="Server Info",                          image = os.path.join(iconPath, "File0031.png"),  command = self.queryServerStatus     )
         
 
     def reconnect(self, *args):
@@ -923,13 +921,13 @@ class PerforceUI:
                 for file in fileDialog.selectedFiles():
                     if Utils.isPathInClientRoot(self.p4, file):
                         try: 
-                            logging.info( p4command(p4args, file) )
+                            p4_logger.info( p4command(p4args, file) )
                             selectedFiles.append(file)
                         except P4Exception as e:
-                            logging.warning(e)
+                            p4_logger.warning(e)
                             error = e
                     else:
-                        logging.warning("{0} is not in client root.".format(file))
+                        p4_logger.warning("{0} is not in client root.".format(file))
                 
             fileDialog.deleteLater()
             if finishCallback: 
@@ -944,13 +942,17 @@ class PerforceUI:
     def checkoutFile(self, *args):
         def openFirstFile(selected, error):
             if not error:
-                if len(selected) == 1 and queryFileExtension(selected[0], ['.ma', '.mb']):
+                if len(selected) == 1 and Utils.queryFileExtension(selected[0], ['.ma', '.mb']):
                     result = QtGui.QMessageBox.question(mainParent, "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes |  QtGui.QMessageBox.No)
                     if result == QtGui.QMessageBox.StandardButton.Yes:
                         openScene(selected[0])
         
         self.__processClientFile("Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
         
+    def deletePending(self, *args):
+        changes = Utils.queryChangelists(self.p4, "pending")
+        Utils.forceChangelistDelete(self.p4, changes)
+
     def run_checkoutFile(self, *args):
         for file in args[1:]:
             result = None
@@ -961,11 +963,11 @@ class PerforceUI:
                 
             try:
                 if result:
-                    logging.info(self.p4.run_edit(file))
-                    logging.info(self.p4.run_lock(file))
+                    p4_logger.info(self.p4.run_edit(file))
+                    p4_logger.info(self.p4.run_lock(file))
                 else:
-                    logging.info(self.p4.run_add(file))
-                    logging.info(self.p4.run_lock(file))
+                    p4_logger.info(self.p4.run_add(file))
+                    p4_logger.info(self.p4.run_lock(file))
             except P4Exception as e:
                 displayErrorUI(e)
                 
@@ -989,16 +991,16 @@ class PerforceUI:
         file = AppUtils.getCurrentSceneFile()
         
         if not file:
-            logging.warning("Current scene has no name")
+            p4_logger.warning("Current scene has no name")
             return
             
         if not Utils.isPathInClientRoot(self.p4, file):
-            logging.warning("{0} is not in client root".format(file))
+            p4_logger.warning("{0} is not in client root".format(file))
             return
             
         try:
             self.p4.run_lock(file)
-            logging.info("Locked file {0}".format(file))
+            p4_logger.info("Locked file {0}".format(file))
             cmds.menuItem(self.unlockFile, edit=True, en=True)
             cmds.menuItem(self.lockFile, edit=True, en=False)
         except P4Exception as e:
@@ -1008,16 +1010,16 @@ class PerforceUI:
         file = AppUtils.getCurrentSceneFile()
         
         if not file:
-            logging.warning("Current scene has no name")
+            p4_logger.warning("Current scene has no name")
             return
             
         if not Utils.isPathInClientRoot(self.p4, file):
-            logging.warning("{0} is not in client root".format(file))
+            p4_logger.warning("{0} is not in client root".format(file))
             return
         
         try:
             self.p4.run_unlock( file )
-            logging.info("Unlocked file {0}".format(file))
+            p4_logger.info("Unlocked file {0}".format(file))
             cmds.menuItem(self.unlockFile, edit=True, en=False)
             cmds.menuItem(self.lockFile, edit=True, en=True)
         except P4Exception as e:
@@ -1028,14 +1030,28 @@ class PerforceUI:
 
     def querySceneStatus(self, *args):
         try:
-            result = self.p4.run_fstat("-Oa", AppUtils.getCurrentSceneFile())[0]
+            scene = AppUtils.getCurrentSceneFile()
+            if not scene:
+                p4_logger.warning("Current scene file isn't saved.")
+                return
+                
+            result = self.p4.run_fstat("-Oa", scene)[0]
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
             QtGui.QMessageBox.information(mainParent, "Scene Info", text)
         except P4Exception as e:
             displayErrorUI(e)
-        
+    
+    def queryServerStatus(self, *args):
+        try:   
+            result = self.p4.run_info()[0]
+            text = ""
+            for x in result:
+                text += ("{0} : {1}\n".format(x, result[x]))
+            QtGui.QMessageBox.information(mainParent, "Server Info", text)
+        except P4Exception as e:
+            displayErrorUI(e)
         
     def fileRevisions(self, *args):
         try:
@@ -1105,14 +1121,14 @@ class PerforceUI:
     def syncFile(self, *args):
         try:
             self.p4.run_sync("-f", AppUtils.getCurrentSceneFile())
-            logging.info("Got latest revision for {0}".format(AppUtils.getCurrentSceneFile()))
+            p4_logger.info("Got latest revision for {0}".format(AppUtils.getCurrentSceneFile()))
         except P4Exception as e:
             displayErrorUI(e)
         
     def syncAll(self, *args):
         try:
             self.p4.run_sync("-f", "...")
-            logging.info("Got latest revisions for client")
+            p4_logger.info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
 

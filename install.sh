@@ -1,18 +1,20 @@
 #!/bin/bash
 
-ln -s $(pwd)/images $HOME/maya/scripts/
+# Install P4Python (Maya)
+mkdir -p $HOME/maya/scripts
+ln -s $(pwd)/P4API/linux/P4.py $HOME/maya/scripts/P4.py
+ln -s $(pwd)/P4API/linux/P4API.so $HOME/maya/scripts/P4API.so
 
-ln $(pwd)/maya/P4API.so $HOME/maya/scripts/P4API.so
-ln $(pwd)/maya/P4.py $HOME/maya/scripts/P4.py
+# Install P4Python (Nuke)
+mkdir -p $HOME/.nuke/scripts
+ln -s $(pwd)/P4API/linux/P4.py $HOME/.nuke/P4.py
+ln -s $(pwd)/P4API/linux/P4API.so $HOME/.nuke/P4API.so
 
-ln $(pwd)/PerforceGUI.py $HOME/maya/scripts/PerforceGUI.py
+# Install Maya plugin
+mkdir -p $HOME/maya/plug-ins
+ln -s $(pwd)/Plugins/P4Maya.py $HOME/maya/plug-ins/P4Maya.py
+ln -s $(pwd)/Perforce/ $HOME/maya/scripts/Perforce
 
-touch $HOME/maya/scripts/userSetup.py
-
-echo "export P4USER=kbishop" >> ~/.bash_profile
-echo "export P4PASSWD=contact_dev" >> ~/.bash_profile
-echo "export P4PORT=ssl:52.17.163.3:1666" >> ~/.bash_profile
-
-source ~/.bash_profile
-
-echo "import PerforceGUI" >> $HOME/maya/scripts/userSetup.py
+# Fix for Nuke SSL error
+echo "alias goNuke=\"LD_PRELOAD=/usr/lib64/libstdc++.so.6:/lib64/libgcc_s.so.1 goNuke\"" >> ~/.bashrc
+echo "export P4EDITOR=gedit" >> ~/.bashrc
