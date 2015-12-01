@@ -16,14 +16,14 @@ mklink /H "%HOME%\My Documents\maya\scripts\P4API.pyd" "%cd%\P4API\windows\P4API
 :: Install Maya plugin
 md "%HOME%\My Documents\maya\plug-ins"
 mklink /H "%HOME%\My Documents\maya\plug-ins\P4Maya.py" "%cd%\Plugins\P4Maya.py" 
-mklink /H "%HOME%\My Documents\maya\scripts\Perforce" "%cd%\Perforce"
+mklink /d "%HOME%\My Documents\maya\scripts\Perforce" "%cd%\Perforce"
 
 :: Install P4Python (Nuke)
 md "%HOME%/.nuke/"
-mklink /H "%HOME%\.nuke\" "%cd%\P4API\windows\P4.py"
-mklink /H "%HOME%\.nuke\" "%cd%\P4API\windows\P4API.pyd"
+mklink /H "%HOME%\.nuke\P4.py" "%cd%\P4API\windows\P4.py"
+mklink /H "%HOME%\.nuke\P4API.pyd" "%cd%\P4API\windows\P4API.pyd"
 
-setx P4CONFIG "%P4CONFIGPATH%"
+setx P4CONFIG %P4CONFIGPATH%
 
 ::P4CONFIG Setup
-echo. "P4PORT=%P4_PORT%" >> "%P4CONFIGPATH%"
+echo. P4PORT=%P4_PORT% >> %P4CONFIGPATH%

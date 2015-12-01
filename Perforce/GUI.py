@@ -808,9 +808,17 @@ class PerforceUI:
         self.perforceMenu = ""
         
         self.p4 = p4
+
         self.p4.connect()
 
-        self.firstTimeLogin( enterUsername = self.p4.user is None, enterPassword = self.p4.password is None )
+        try:
+            self.firstTimeLogin( enterUsername = self.p4.user is None, enterPassword = self.p4.password is None )
+        except P4Exception as e:
+            # If user/pass is set but it fails anyway, try a last ditch attempt to let the user input their stuff
+            try:
+                self.firstTimeLogin( enterUsername = True, enterPassword = True )
+            except P4Exception as e:
+                raise e
 
         # Validate workspace
         try:
@@ -1214,9 +1222,16 @@ def init():
     #PORT = "ssl:52.17.163.3:1666"
     #USER = "tminor"
     p4 = P4()
+    #Utils.loadP4Config(p4)
+    print p4.env("P4PORT")
+    # del p4
+    #p4 = P4()
+
     #p4.port = PORT
     #p4.user = USER
     #p4.password = "contact_dev"
+
+    return
 
     try:
         ui = PerforceUI(p4)

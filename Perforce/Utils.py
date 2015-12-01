@@ -72,25 +72,44 @@ def inDirectory(file, directory):
 
 #============================= Perforce Procedures ===========================
 
+def loadP4Config(p4):
+    # Stupid bug (Windows only I hope)
+    if p4.p4config_file == "noconfig":
+        configpath = os.environ['P4CONFIG'].replace('\\', '/') 
+        print os.path.isfile( configpath )
+        print os.path.isfile("C:/Users/tom/.p4config")
+        if os.path.isfile( os.environ['P4CONFIG'].replace('\\', '/') ):
+            p4_logger.info("Reading from config file at {0}".format(os.environ['P4CONFIG']) )
+            with open( os.environ['P4CONFIG'] ) as file:
+                for line in file:
+                    key, value = line.split("=")
+                    p4_logger.info("Setting {0}={1}".format(key,value))
+                    p4.set_env(key, value)
+
 def writeToP4Config(config, key, value):
     found = False
     fileinput.close()
     
-    for line in fileinput.input(config, inplace=True):
-        result = line
-        resultSplit = line.split("=")
-        
-        if len(resultSplit) == 2:
-            _key, _value = resultSplit
-            if _key == key:
-                result = "{0}={1}\n".format( key, value )
-                found = True
-                
-        print result,
-        
-    if not found:
-        with open(config, "a") as file:
-            file.write( "{0}={1}\n".format( key, value ) )
+    p4_logger.info("Writing {0}:{1} to config {2}".format(key, value, config))
+
+    try:
+        for line in fileinput.input(config, inplace=True):
+            result = line
+            resultSplit = line.split("=")
+            
+            if len(resultSplit) == 2:
+                _key, _value = resultSplit
+                if _key == key:
+                    result = "{0}={1}\n".format( key, value )
+                    found = True
+                    
+            print result,
+            
+        if not found:
+            with open(config, "a") as file:
+                file.write( "{0}={1}\n".format( key, value ) )
+    except WindowsError as e:
+        p4_logger.error(e)
 
 
 def isPathInClientRoot(p4, path):
