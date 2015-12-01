@@ -1,5 +1,7 @@
 #!/bin/bash
 
+P4_PORT="ssl:52.17.163.3:1666"
+
 _P4CONFIG=".p4config"
 _P4CONFIGPATH="$HOME/$_P4CONFIG"
 _P4CONFIGPATH_RC="\$HOME/$_P4CONFIG"
@@ -40,7 +42,8 @@ echo "export P4CONFIG=$_P4CONFIGPATH" >> ~/.bashrc
 echo "alias goNuke=\"LD_PRELOAD=/usr/lib64/libstdc++.so.6:/lib64/libgcc_s.so.1 goNuke\"" >> ~/.bashrc
 
 #P4CONFIG Setup
-echo "P4EDITOR geany" >> $_P4CONFIGPATH
+echo "P4EDITOR=geany" >> $_P4CONFIGPATH
+echo "P4PORT=$P4PORT" >> $_P4CONFIGPATH
 
 
 
