@@ -1,6 +1,6 @@
 @echo off
 
-set P4_PORT="ssl:52.17.163.3:1666"
+set P4_PORT=ssl:52.17.163.3:1666
 
 set HOME="%HOMEDRIVE%%HOMEPATH%"
 set P4CONFIG=.p4config
@@ -26,4 +26,4 @@ mklink /H "%HOME%\.nuke\P4API.pyd" "%cd%\P4API\windows\P4API.pyd"
 setx P4CONFIG %P4CONFIGPATH%
 
 ::P4CONFIG Setup
-echo. P4PORT=%P4_PORT% >> %P4CONFIGPATH%
+echo.P4PORT=%P4_PORT% >> %P4CONFIGPATH%
