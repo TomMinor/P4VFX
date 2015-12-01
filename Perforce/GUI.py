@@ -855,13 +855,11 @@ class PerforceUI:
         cmds.menuItem(label="Checkout File(s)",                     image = os.path.join(iconPath, "File0078.png"), command = self.checkoutFile )
         cmds.menuItem(label="Mark for Delete",                      image = os.path.join(iconPath, "File0253.png"), command = self.deleteFile               )
         cmds.menuItem(label="Show Changelist",                      image = os.path.join(iconPath, "File0252.png"), command = self.queryOpened              )
-        cmds.menuItem(divider=True)
-        cmds.menuItem(label="Create Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.createWorkspace  )
-        cmds.menuItem(label="Set Current Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.setCurrentWorkspace  )
 
         #cmds.menuItem(divider=True)
         #self.lockFile = cmds.menuItem(label="Lock This File",       image = os.path.join(iconPath, "File0143.png"), command = self.lockThisFile                 )
         #self.unlockFile = cmds.menuItem(label="Unlock This File",   image = os.path.join(iconPath, "File0252.png"), command = self.unlockThisFile, en=False     )
+        #cmds.menuItem(label = "Locking", divider=True)
         #cmds.menuItem(label="Lock File",                            image = os.path.join(iconPath, "File0143.png"), command = self.lockFile                 )
         #cmds.menuItem(label="Unlock File",                          image = os.path.join(iconPath, "File0252.png"), command = self.unlockFile               )
         
@@ -876,10 +874,14 @@ class PerforceUI:
         cmds.menuItem(label="File Status",                          image = os.path.join(iconPath, "File0409.png"), command = self.querySceneStatus       )
         
         cmds.menuItem(divider=True)
-        cmds.menuItem(subMenu=True, tearOff=False, label="Preferences")
+        cmds.menuItem(subMenu=True, tearOff=False, label="Miscellaneous", image = os.path.join(iconPath, "File0411.png"))
+        cmds.menuItem(label = "Server", divider=True)
         cmds.menuItem(label="Login as user",                            image = os.path.join(iconPath, "File0077.png"), command = self.loginAsUser              )
         cmds.menuItem(label="Change Password",                     image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
         cmds.menuItem(label="Server Info",                               image = os.path.join(iconPath, "File0031.png"),  command = self.queryServerStatus     )
+        cmds.menuItem(label = "Workspace", divider=True)
+        cmds.menuItem(label="Create Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.createWorkspace  )
+        cmds.menuItem(label="Set Current Workspace",                      image = os.path.join(iconPath, "File0044.png"), command = self.setCurrentWorkspace  )
         cmds.menuItem(label = "Debug", divider=True)
         cmds.menuItem(label="Delete all pending changes",                      image = os.path.join(iconPath, "File0280.png"), command = self.deletePending              )
         
@@ -1219,19 +1221,7 @@ def init():
     except:
         pass
 
-    #PORT = "ssl:52.17.163.3:1666"
-    #USER = "tminor"
     p4 = P4()
-    #Utils.loadP4Config(p4)
-    print p4.env("P4PORT")
-    # del p4
-    #p4 = P4()
-
-    #p4.port = PORT
-    #p4.user = USER
-    #p4.password = "contact_dev"
-
-    return
 
     try:
         ui = PerforceUI(p4)
