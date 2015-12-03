@@ -827,7 +827,10 @@ class PerforceUI:
             displayErrorUI(e)
         except KeyError as e:
             print "No workspace found, creating default one"
-            self.createWorkspace()
+            try:
+                self.createWorkspace()
+            except P4Exception as e:
+                p4_logger.warning( e )
 
         self.p4.cwd = self.p4.fetch_client()['Root']
 
@@ -975,7 +978,6 @@ class PerforceUI:
             Utils.createWorkspace(self.p4, workspaceRoot, str(workspaceSuffix[0]))
         except P4Exception as e:
             displayErrorUI(e)
-            raise e
 
     # Open up a sandboxed QFileDialog and run a command on all the selected files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
@@ -1040,7 +1042,7 @@ class PerforceUI:
             try:
                 if result:
                     if 'otherLock' in result[0]:
-                        raise P4Exception("[Warning]: Already locked by {0}\"".format( result[0]['otherLock'][0] ))
+                        raise P4Exception("[Warning]: {0} already locked by {1}\"".format( file, result[0]['otherLock'][0] ))
                     else:
                         p4_logger.info(self.p4.run_edit(file))
                         p4_logger.info(self.p4.run_lock(file))

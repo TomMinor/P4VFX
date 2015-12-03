@@ -108,7 +108,7 @@ def writeToP4Config(config, key, value):
         if not found:
             with open(config, "a") as file:
                 file.write( "{0}={1}\n".format( key, value ) )
-    except WindowsError as e:
+    except Exception as e:
         p4_logger.error(e)
 
 
@@ -308,15 +308,24 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
         saveEnvironmentVariable("P4CLIENT", p4.client)
     else:
         p4.set_env('P4CLIENT', p4.client)
-
-    writeToP4Config(p4.p4config_file, "P4CLIENT", p4.client)
         
     p4.cwd = spec['Root']
     
     p4_logger.info("Creating workspace {0}...".format(client))
     
     p4.save_client(spec)
-   
+
     p4_logger.info("Syncing new workspace...")
-    p4.run_sync("...")
+    
+    try:
+    	p4.run_sync("...")
+    	p4_logger.info("Sync Done!")
+    except P4Exception as e:
+    	p4_logger.info("Sync failed, probably because the depot is empty")
+
+	if not os.path.exists(spec['Root']):
+		os.makedirs(spec['Root'])
+
+    p4_logger.info("Writing to config...")
+    writeToP4Config(p4.p4config_file, "P4CLIENT", p4.client)
     p4_logger.info("Done!")
