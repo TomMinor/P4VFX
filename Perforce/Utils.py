@@ -16,6 +16,71 @@ p4_logger = logging.getLogger("Perforce")
 
 #============================= Filesystem Procedures ===========================
 
+def queryFilesInDirectory(rootDir):
+	allFiles = []
+	for root, dirnames, filenames in os.walk( rootDir ):
+		currentDir = ""
+		if dirnames:
+			currentDir = dirnames[0]
+
+		fullPath = os.path.join(root, currentDir)
+
+		for file in filenames:
+			allFiles.append( os.path.join(fullPath, file) )
+
+	return allFiles
+
+def makeDirectory(path):
+	if not os.path.exists(path):
+		os.mkdir(path)
+	return path
+
+def makeEmptyFile(path):
+	open(path, 'a').close()
+
+def makeEmptyDirectory(path):
+	if not os.path.exists(path):
+		os.mkdir(path)
+	makeEmptyFile( os.path.join(path, ".place-holder") )
+	return path
+
+def createAssetFolders(root, assetName):
+	rootDir = os.path.join(root, "assets")
+	assetsDir = os.path.join(rootDir, assetName)
+
+	makeDirectory( rootDir )
+	makeDirectory( assetsDir )
+	makeEmptyDirectory( os.path.join(assetsDir, "lookDev") )
+	makeEmptyDirectory( os.path.join(assetsDir, "modelling") )
+	makeEmptyDirectory( os.path.join(assetsDir, "rigging") )
+	makeEmptyDirectory( os.path.join(assetsDir, "texturing") )
+
+def createShotFolders(root, shotName, shotNumInput):
+	rootDir = os.path.join(root, "shots")
+	shotsDir = os.path.join(rootDir, shotName)
+
+	shotNum = "0{0}0".format(shotNumInput)
+	shotNumberDir = os.path.join( shotsDir, "{0}_sh_{1}".format(shotName, shotNum) )
+
+	makeDirectory( rootDir )
+	makeDirectory( shotsDir )
+	shot = makeDirectory( shotNumberDir )
+
+	#Cg
+	cg = makeDirectory( os.path.join(shot, "cg") )
+
+	houdini = makeDirectory( os.path.join(cg, "houdini") )
+	makeEmptyDirectory( os.path.join(houdini, "scenes") )
+
+	maya = makeDirectory( os.path.join(cg, "maya") )
+	makeEmptyDirectory( os.path.join(maya, "images") )
+	makeEmptyDirectory( os.path.join(maya, "scenes") )
+
+	makeEmptyDirectory( os.path.join(shot, "comp") )
+	makeEmptyDirectory( os.path.join(shot, "dailies") )
+	makeEmptyDirectory( os.path.join(shot, "delivery") )
+	makeEmptyDirectory( os.path.join(shot, "plates") )
+
 def saveEnvironmentVariable( var, value ):
     os.system('bash -c \'echo "export {0}={1}" >> ~/.bashrc\''.format(var, value))
     os.system('bash -c \'source ~/.bashrc\'')

@@ -835,6 +835,28 @@ class PerforceUI:
         self.p4.cwd = self.p4.fetch_client()['Root']
 
     def __del__(self):
+        try:
+            self.revisionUi.deleteLater()
+        except:
+            pass
+
+        try:
+            self.openedUi.deleteLater()
+        except:
+            pass
+
+        try:
+            cmds.deleteUI(self.perforceMenu)
+        except:
+            pass
+
+
+        try:
+            self.submitUI.deleteLater()
+        except:
+            pass
+
+
         p4_logger.info("Disconnecting from server")
         self.p4.disconnect()
         
@@ -856,6 +878,7 @@ class PerforceUI:
         cmds.setParent(self.perforceMenu, menu=True)
         cmds.menuItem(label = "Client Commands", divider=True)
         cmds.menuItem(label="Checkout File(s)",                     image = os.path.join(iconPath, "File0078.png"), command = self.checkoutFile )
+        cmds.menuItem(label="Checkout Folder",                     image = os.path.join(iconPath, "File0186.png"), command = self.checkoutFolder )
         cmds.menuItem(label="Mark for Delete",                      image = os.path.join(iconPath, "File0253.png"), command = self.deleteFile               )
         cmds.menuItem(label="Show Changelist",                      image = os.path.join(iconPath, "File0252.png"), command = self.queryOpened              )
 
@@ -875,12 +898,16 @@ class PerforceUI:
         
         cmds.menuItem(label = "Scene", divider=True)
         cmds.menuItem(label="File Status",                          image = os.path.join(iconPath, "File0409.png"), command = self.querySceneStatus       )
+
+        cmds.menuItem(label = "Utility", divider=True)
+        cmds.menuItem(label="Create Asset",                          image = os.path.join(iconPath, "File0352.png"), command = self.createAsset       )
+        cmds.menuItem(label="Create Shot",                          image = os.path.join(iconPath, "File0104.png"), command = self.createShot       )
         
         cmds.menuItem(divider=True)
         cmds.menuItem(subMenu=True, tearOff=False, label="Miscellaneous", image = os.path.join(iconPath, "File0411.png"))
         cmds.menuItem(label = "Server", divider=True)
         cmds.menuItem(label="Login as user",                            image = os.path.join(iconPath, "File0077.png"), command = self.loginAsUser              )
-        cmds.menuItem(label="Change Password",                     image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
+        #cmds.menuItem(label="Change Password",                     image = os.path.join(iconPath, "File0143.png"), command = "print('Change password')",   en=False    )
         cmds.menuItem(label="Server Info",                               image = os.path.join(iconPath, "File0031.png"),  command = self.queryServerStatus     )
         cmds.menuItem(label = "Workspace", divider=True)
         cmds.menuItem(label="Create Workspace",                      image = os.path.join(iconPath, "File0238.png"), command = self.createWorkspace  )
@@ -890,6 +917,51 @@ class PerforceUI:
         
     def changePasswd(self, *args):
         pass
+
+    def createShot(self, *args):
+        shotNameDialog = QtGui.QInputDialog;
+        shotName = shotNameDialog.getText( mainParent, "Create Shot", "Shot Name:" )
+    
+        if not shotName[1]:
+            return
+
+        if not shotName[0]:
+            p4_logger.warning("Empty shot name")
+            return
+
+        shotNumDialog = QtGui.QInputDialog;
+        shotNum = shotNumDialog.getText( mainParent, "Create Shot", "Shot Number:" )
+    
+        if not shotNum[1]:
+            return
+
+        if not shotNum[0]:
+            p4_logger.warning("Empty shot number")
+            return
+
+        shotNumberInt = -1
+        try:
+            shotNumberInt = int(shotNum[0])
+        except ValueError as e:
+            p4_logger.warning(e)
+            return
+
+        p4_logger.info("Creating folder structure for shot {0}/{1} in {2}".format(shotName[0], shotNumberInt, self.p4.cwd) )
+        Utils.createShotFolders(self.p4.cwd, shotName[0], shotNumberInt)
+
+    def createAsset(self, *args):
+        assetNameDialog = QtGui.QInputDialog;
+        assetName = assetNameDialog.getText( mainParent, "Create Asset", "Asset Name:" )
+    
+        if not assetName[1]:
+            return
+
+        if not assetName[0]:
+            p4_logger.warning("Empty asset name")
+            return
+
+        p4_logger.info("Creating folder structure for asset {0} in {1}".format(assetName[0], self.p4.cwd) )
+        Utils.createAssetFolders(self.p4.cwd, assetName[0])
 
     def loginAsUser(self, *args):
         self.firstTimeLogin(enterUsername = True, enterPassword = True)
@@ -1017,6 +1089,45 @@ class PerforceUI:
         fileDialog.finished.connect( onComplete )
         fileDialog.show()
 
+    # Open up a sandboxed QFileDialog and run a command on all the selected folders (and log the output)
+    # %TODO This should be refactored
+    def __processClientDirectory(self, title, finishCallback, preCallback, p4command, *p4args):
+        fileDialog = QtGui.QFileDialog( mainParent, title, str(self.p4.cwd) )
+        
+        def onEnter(*args):
+            if not Utils.isPathInClientRoot(self.p4, args[0]):
+                fileDialog.setDirectory( self.p4.cwd )
+                
+        def onComplete(*args):
+            selectedFiles = []
+            error = None
+            
+            if preCallback:
+                preCallback(fileDialog.selectedFiles())
+            
+            # Only add files if we didn't cancel
+            if args[0] == 1:
+                for file in fileDialog.selectedFiles():
+                    if Utils.isPathInClientRoot(self.p4, file):
+                        try: 
+                            p4_logger.info( p4command(p4args, file) )
+                            selectedFiles.append(file)
+                        except P4Exception as e:
+                            p4_logger.warning(e)
+                            error = e
+                    else:
+                        p4_logger.warning("{0} is not in client root.".format(file))
+                
+            fileDialog.deleteLater()
+            if finishCallback: 
+                finishCallback(selectedFiles, error)
+        
+        
+        fileDialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
+        fileDialog.directoryEntered.connect( onEnter )
+        fileDialog.finished.connect( onComplete )
+        fileDialog.show()
+
     def checkoutFile(self, *args):
         def openFirstFile(selected, error):
             if not error:
@@ -1026,6 +1137,16 @@ class PerforceUI:
                         openScene(selected[0])
         
         self.__processClientFile("Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
+
+    def checkoutFolder(self, *args):        
+        self.__processClientDirectory("Checkout file(s)", None, None, self.run_checkoutFolder)
+
+    def run_checkoutFolder(self, *args):
+        allFiles = []
+        for folder in args[1:]:
+            allFiles += Utils.queryFilesInDirectory( folder )
+
+        self.run_checkoutFile( None, *allFiles )
         
     def deletePending(self, *args):
         changes = Utils.queryChangelists(self.p4, "pending")
@@ -1033,6 +1154,7 @@ class PerforceUI:
 
     def run_checkoutFile(self, *args):
         for file in args[1:]:
+            p4_logger.info("Processing {0}...".format(file))
             result = None
             try:
                 result = self.p4.run_fstat(file)
