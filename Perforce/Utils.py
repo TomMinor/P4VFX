@@ -168,8 +168,7 @@ def writeToP4Config(config, key, value):
                     result = "{0}={1}\n".format( key, value )
                     found = True
                     
-            #New lines are a windows fix
-            print '\n' + result + '\n',
+            print "\n" + result + "\n",
             
         if not found:
             with open(config, "a") as file:
@@ -384,13 +383,13 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
     p4_logger.info("Syncing new workspace...")
     
     try:
-    	p4.run_sync("...")
-    	p4_logger.info("Sync Done!")
+        p4.run_sync("...")
+        p4_logger.info("Sync Done!")
     except P4Exception as e:
-    	p4_logger.info("Sync failed, probably because the depot is empty")
+        p4_logger.info("Sync failed, probably because the depot is empty")
 
-	if not os.path.exists(spec['Root']):
-		os.makedirs(spec['Root'])
+    if not os.path.exists(spec['Root']):
+        os.makedirs(spec['Root'])
 
     p4_logger.info("Writing to config...")
     writeToP4Config(p4.p4config_file, "P4CLIENT", p4.client)

@@ -19,10 +19,10 @@ reload(GlobalVars)
 GlobalVars.tempPath = os.environ['TMPDIR']
 
 class P4Icon:
-    iconName = "p4.png"
-    addFile = "File0242.png"    
-    editFile = "File0440.png"
-    deleteFile = "File0253.png"
+	iconName = "p4.png"
+	addFile = "File0242.png"    
+	editFile = "File0440.png"
+	deleteFile = "File0253.png"
 
 GlobalVars.P4Icon = P4Icon
 
@@ -30,7 +30,7 @@ import GUI
 reload(GUI)
 
 def init():
-    GUI.init()
+	GUI.init()
 
 def close():
-    GUI.close()
+	GUI.close()

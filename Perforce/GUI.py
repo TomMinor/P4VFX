@@ -858,7 +858,10 @@ class PerforceUI:
 
 
         p4_logger.info("Disconnecting from server")
-        self.p4.disconnect()
+        try:
+            self.p4.disconnect()
+        except:
+            pass
         
     def addMenu(self):
         try:
@@ -1048,6 +1051,7 @@ class PerforceUI:
             workspaceSuffix = workspaceSuffixDialog.getText( mainParent, "Workspace", "Optional Name Suffix (e.g. Uni, Home):" )
 
             Utils.createWorkspace(self.p4, workspaceRoot, str(workspaceSuffix[0]))
+            Utils.writeToP4Config(self.p4.p4config_file, "P4CLIENT", self.p4.client)
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -1346,6 +1350,9 @@ def init():
         pass
 
     p4 = P4()
+    print p4.p4config_file
+    print p4.client
+    print p4.port
 
     try:
         ui = PerforceUI(p4)
