@@ -1138,7 +1138,7 @@ class PerforceUI:
                 if len(selected) == 1 and Utils.queryFileExtension(selected[0], ['.ma', '.mb']):
                     result = QtGui.QMessageBox.question(mainParent, "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes |  QtGui.QMessageBox.No)
                     if result == QtGui.QMessageBox.StandardButton.Yes:
-                        openScene(selected[0])
+                        AppUtils.openScene(selected[0])
         
         self.__processClientFile("Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
 
