@@ -168,7 +168,8 @@ def writeToP4Config(config, key, value):
                     result = "{0}={1}\n".format( key, value )
                     found = True
                     
-            print result,
+            #New lines are a windows fix
+            print '\n' + result + '\n',
             
         if not found:
             with open(config, "a") as file:
