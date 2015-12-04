@@ -43,7 +43,7 @@ echo "alias goNuke=\"LD_PRELOAD=/usr/lib64/libstdc++.so.6:/lib64/libgcc_s.so.1 g
 
 #P4CONFIG Setup
 echo "P4EDITOR=geany" >> $_P4CONFIGPATH
-echo "P4PORT=$P4PORT" >> $_P4CONFIGPATH
+echo "P4PORT=$P4_PORT" >> $_P4CONFIGPATH
 
 
 
