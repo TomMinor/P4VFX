@@ -7,7 +7,6 @@ set HOME=%HOMEDRIVE%%HOMEPATH%
 set P4CONFIG=.p4config
 set P4CONFIGPATH=%HOME%\%P4CONFIG%
 
-
 cd /d %~dp0
 Set  StartInDirectory= %cd%
 
@@ -18,18 +17,28 @@ type NUL > %P4CONFIGPATH%
 :: Install P4Python (Maya)
 md "%HOME%\My Documents\maya\scripts"
 
-echo Linking %CURRENTDIR%\P4API\windows\P4.py...
-mklink /J /d "%HOME%\My Documents\maya\scripts\P4.py" "%CURRENTDIR%\P4API\windows\P4.py"
+set A=%CURRENTDIR%\P4API\windows\P4.py
+set B=%HOME%\My Documents\maya\scripts\P4.py
+echo Linking %A% to %B% ...
+mklink /J /d "%B%" "%A%" 
 
-echo Linking %CURRENTDIR%\P4API\windows\P4API.pyd...
-mklink /J /d "%HOME%\My Documents\maya\scripts\P4API.pyd" "%CURRENTDIR%\P4API\windows\P4API.pyd"
+set A=%CURRENTDIR%\P4API\windows\P4API.pyd
+set B=%HOME%\My Documents\maya\scripts\P4API.pyd
+echo Linking %A% to %B% ...
+mklink /J /d "%B%" "%A%" 
 
 :: Install Maya plugin
 md "%HOME%\My Documents\maya\plug-ins"
-echo Linking %CURRENTDIR%\Plugins\P4Maya.py...
-mklink /J /d "%HOME%\My Documents\maya\plug-ins\P4Maya.py" "%CURRENTDIR%\Plugins\P4Maya.py" 
-echo Linking %CURRENTDIR%\Perforce...
-mklink /J /d "%HOME%\My Documents\maya\scripts\Perforce" "%CURRENTDIR%\Perforce"
+
+set A=%CURRENTDIR%\Plugins\P4Maya.py
+set B=%HOME%\My Documents\maya\plug-ins\P4Maya.py
+echo Linking %A% to %B% ...
+mklink /J /d "%B%" "%A%" 
+
+set A=%CURRENTDIR%\Perforce
+set B=%HOME%\My Documents\maya\scripts\Perforce
+echo Linking %A% to %B% ...
+mklink /J /d "%B%" "%A%" 
 
 :: Install P4Python (Nuke)
 ::md "%HOME%/.nuke/"
