@@ -364,13 +364,13 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
     spec._client = client
     spec._root = os.path.join(str(rootPath), spec['Client'] )
     spec._view = [ '//depot/... //{0}/...'.format(spec['Client']) ]
+    spec._host = ""
 
     p4.client = spec['Client']
 
     # REALLY make sure we save the P4CLIENT variable
     if platform.system() == "Linux" or platform.system() == "Darwin":
         os.environ['P4CLIENT'] = p4.client
-        saveEnvironmentVariable("P4CLIENT", p4.client)
     else:
         p4.set_env('P4CLIENT', p4.client)
         
