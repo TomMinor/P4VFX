@@ -2,6 +2,18 @@
 
 set HOME=%HOMEDRIVE%%HOMEPATH%\Documents
 
+set HOME=
+echo Enter your Documents folder (the one with maya in it C:\Users\USER\Documents)
+set /p HOME=Document Path : 
+
+if exist %HOME% (
+	echo Directory %HOME% is valid
+) else (
+	echo Directory %HOME% doesn't exist
+	pause
+	goto: eof	
+)
+
 :: Remove P4Python (Maya)
 
 echo Removing %HOME%\maya\scripts\P4.py...

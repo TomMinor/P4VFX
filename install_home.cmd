@@ -4,6 +4,18 @@ set P4_PORT=ssl:52.17.163.3:1666
 
 set HOME=%HOMEDRIVE%%HOMEPATH%
 
+set HOME=
+echo Enter your Documents folder (the one with maya in it C:\Users\USER\Documents)
+set /p HOME=Document Path : 
+
+if exist %HOME% (
+	echo Directory %HOME% is valid
+) else (
+	echo Directory %HOME% doesn't exist
+	pause
+	goto: eof	
+)
+
 set P4CONFIG=.p4config
 set P4CONFIGPATH=%HOME%\%P4CONFIG%
 
@@ -15,28 +27,28 @@ set CURRENTDIR=%StartInDirectory%
 type NUL > %P4CONFIGPATH%
 
 :: Install P4Python (Maya)
-md "%HOME%\My Documents\maya\scripts"
+md "%HOME%\maya\scripts"
 
 set A=%CURRENTDIR%\P4API\windows\P4.py
-set B=%HOME%\My Documents\maya\scripts\P4.py
+set B=%HOME%\maya\scripts\P4.py
 echo Linking %A% to %B% ...
 mklink /J /d "%B%" "%A%" 
 
 set A=%CURRENTDIR%\P4API\windows\P4API.pyd
-set B=%HOME%\My Documents\maya\scripts\P4API.pyd
+set B=%HOME%\maya\scripts\P4API.pyd
 echo Linking %A% to %B% ...
 mklink /J /d "%B%" "%A%" 
 
 :: Install Maya plugin
-md "%HOME%\My Documents\maya\plug-ins"
+md "%HOME%\maya\plug-ins"
 
 set A=%CURRENTDIR%\Plugins\P4Maya.py
-set B=%HOME%\My Documents\maya\plug-ins\P4Maya.py
+set B=%HOME%\maya\plug-ins\P4Maya.py
 echo Linking %A% to %B% ...
 mklink /J /d "%B%" "%A%" 
 
 set A=%CURRENTDIR%\Perforce
-set B=%HOME%\My Documents\maya\scripts\Perforce
+set B=%HOME%\maya\scripts\Perforce
 echo Linking %A% to %B% ...
 mklink /J /d "%B%" "%A%" 
 
