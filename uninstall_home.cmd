@@ -3,7 +3,7 @@
 set HOME=%HOMEDRIVE%%HOMEPATH%\Documents
 
 set HOME=
-echo Enter your Documents folder (the one with maya in it C:\Users\USER\Documents)
+echo Enter your user folder (the one with Documents in it e.g. C:\Users\USER)
 set /p HOME=Document Path : 
 
 if exist %HOME% (
@@ -16,24 +16,26 @@ if exist %HOME% (
 
 :: Remove P4Python (Maya)
 
-echo Removing %HOME%\maya\scripts\P4.py...
-del %HOME%\maya\scripts\P4.py
-echo Removing %HOME%\maya\scripts\P4API.pyd
-del %HOME%\maya\scripts\P4API.pyd
+set INSTALLPATH=%HOME%\Documents
+
+echo Removing %INSTALLPATH%\maya\scripts\P4.py...
+del /F %INSTALLPATH%\maya\scripts\P4.py
+echo Removing %INSTALLPATH%\maya\scripts\P4API.pyd
+del /F %INSTALLPATH%\maya\scripts\P4API.pyd
 
 
 :: Remove Maya plugin
-echo Removing %HOME%\maya\plug-ins\P4Maya.py...
-del %HOME%\maya\plug-ins\P4Maya.py
-echo Removing %HOME%\maya\scripts\Perforce...
-rmdir /s /q %HOME%\maya\scripts\Perforce
+echo Removing %INSTALLPATH%\maya\plug-ins\P4Maya.py...
+del /F "%INSTALLPATH%\maya\plug-ins\P4Maya.py"
+echo Removing %INSTALLPATH%\maya\scripts\Perforce...
+rmdir /s /q %INSTALLPATH%\maya\scripts\Perforce
 
 
 :: Remove P4Python (Nuke)
 
-echo Removing %HOME%\.nuke\P4.py...
-del %HOME%\.nuke\P4.py
-echo Removing %HOME%\.nuke\P4API.pyd...
-del %HOME%\.nuke\P4API.pyd
+echo Removing %INSTALLPATH%\.nuke\P4.py...
+del %INSTALLPATH%\.nuke\P4.py
+echo Removing %INSTALLPATH%\.nuke\P4API.pyd...
+del %INSTALLPATH%\.nuke\P4API.pyd
 
 pause

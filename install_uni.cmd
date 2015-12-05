@@ -1,7 +1,9 @@
 @echo off
 
 set P4_PORT=ssl:52.17.163.3:1666
+
 set HOME=%HOMEDRIVE%%HOMEPATH%
+
 set P4CONFIG=.p4config
 set P4CONFIGPATH=%HOME%\%P4CONFIG%
 
