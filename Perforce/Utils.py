@@ -45,15 +45,17 @@ def makeEmptyDirectory(path):
 	return path
 
 def createAssetFolders(root, assetName):
-	rootDir = os.path.join(root, "assets")
-	assetsDir = os.path.join(rootDir, assetName)
+    rootDir = os.path.join(root, "assets")
+    assetsDir = os.path.join(rootDir, assetName)
 
-	makeDirectory( rootDir )
-	makeDirectory( assetsDir )
-	makeEmptyDirectory( os.path.join(assetsDir, "lookDev") )
-	makeEmptyDirectory( os.path.join(assetsDir, "modelling") )
-	makeEmptyDirectory( os.path.join(assetsDir, "rigging") )
-	makeEmptyDirectory( os.path.join(assetsDir, "texturing") )
+    makeDirectory( rootDir )
+    makeDirectory( assetsDir )
+    makeEmptyDirectory( os.path.join(assetsDir, "lookDev") )
+    makeEmptyDirectory( os.path.join(assetsDir, "modelling") )
+    makeEmptyDirectory( os.path.join(assetsDir, "rigging") )
+    makeEmptyDirectory( os.path.join(assetsDir, "texturing") )
+
+    return assetsDir
 
 def createShotFolders(root, shotName, shotNumInput):
     rootDir = os.path.join(root, "shots")
@@ -79,6 +81,8 @@ def createShotFolders(root, shotName, shotNumInput):
     makeEmptyDirectory( os.path.join(shot, "dailies") )
     makeEmptyDirectory( os.path.join(shot, "delivery") )
     makeEmptyDirectory( os.path.join(shot, "plates") )
+
+    return shotsDir
 
 def saveEnvironmentVariable( var, value ):
     os.system('bash -c \'echo "export {0}={1}" >> ~/.bashrc\''.format(var, value))

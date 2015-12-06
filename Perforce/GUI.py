@@ -950,7 +950,8 @@ class PerforceUI:
             return
 
         p4_logger.info("Creating folder structure for shot {0}/{1} in {2}".format(shotName[0], shotNumberInt, self.p4.cwd) )
-        Utils.createShotFolders(self.p4.cwd, shotName[0], shotNumberInt)
+        dir = Utils.createShotFolders(self.p4.cwd, shotName[0], shotNumberInt)
+        self.run_checkoutFolder(None, dir)
 
     def createAsset(self, *args):
         assetNameDialog = QtGui.QInputDialog;
@@ -964,7 +965,8 @@ class PerforceUI:
             return
 
         p4_logger.info("Creating folder structure for asset {0} in {1}".format(assetName[0], self.p4.cwd) )
-        Utils.createAssetFolders(self.p4.cwd, assetName[0])
+        dir = Utils.createAssetFolders(self.p4.cwd, assetName[0])
+        self.run_checkoutFolder(None, dir)
 
     def loginAsUser(self, *args):
         self.firstTimeLogin(enterUsername = True, enterPassword = True)
