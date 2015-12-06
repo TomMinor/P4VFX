@@ -82,7 +82,7 @@ def createShotFolders(root, shotName, shotNumInput):
     makeEmptyDirectory( os.path.join(shot, "delivery") )
     makeEmptyDirectory( os.path.join(shot, "plates") )
 
-    return shotsDir
+    return shotNumberDir
 
 def saveEnvironmentVariable( var, value ):
     os.system('bash -c \'echo "export {0}={1}" >> ~/.bashrc\''.format(var, value))
