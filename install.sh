@@ -5,7 +5,7 @@ P4_PORT="ssl:52.17.163.3:1666"
 _P4CONFIG=".p4config"
 _P4CONFIGPATH="$HOME/$_P4CONFIG"
 _P4CONFIGPATH_RC="\$HOME/$_P4CONFIG"
-touch _P4CONFIGPATH
+touch $_P4CONFIGPATH
 
 # Install P4Python (Maya)
 mkdir -p $HOME/maya/scripts
@@ -44,8 +44,4 @@ echo "alias goNuke=\"LD_PRELOAD=/usr/lib64/libstdc++.so.6:/lib64/libgcc_s.so.1 g
 #P4CONFIG Setup
 echo "P4EDITOR=geany" >> $_P4CONFIGPATH
 echo "P4PORT=$P4_PORT" >> $_P4CONFIGPATH
-
-
-
-
 

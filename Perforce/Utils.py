@@ -56,30 +56,29 @@ def createAssetFolders(root, assetName):
 	makeEmptyDirectory( os.path.join(assetsDir, "texturing") )
 
 def createShotFolders(root, shotName, shotNumInput):
-	rootDir = os.path.join(root, "shots")
-	shotsDir = os.path.join(rootDir, shotName)
+    rootDir = os.path.join(root, "shots")
+    shotsDir = os.path.join(rootDir, shotName)
+    shotNum = "{0}0".format( format(shotNumInput, '02') )
+    shotNumberDir = os.path.join( shotsDir, "{0}_sh_{1}".format(shotName, shotNum) )
 
-	shotNum = "0{0}0".format(shotNumInput)
-	shotNumberDir = os.path.join( shotsDir, "{0}_sh_{1}".format(shotName, shotNum) )
+    makeDirectory( rootDir )
+    makeDirectory( shotsDir )
+    shot = makeDirectory( shotNumberDir )
 
-	makeDirectory( rootDir )
-	makeDirectory( shotsDir )
-	shot = makeDirectory( shotNumberDir )
+    #Cg
+    cg = makeDirectory( os.path.join(shot, "cg") )
 
-	#Cg
-	cg = makeDirectory( os.path.join(shot, "cg") )
+    houdini = makeDirectory( os.path.join(cg, "houdini") )
+    makeEmptyDirectory( os.path.join(houdini, "scenes") )
 
-	houdini = makeDirectory( os.path.join(cg, "houdini") )
-	makeEmptyDirectory( os.path.join(houdini, "scenes") )
+    maya = makeDirectory( os.path.join(cg, "maya") )
+    makeEmptyDirectory( os.path.join(maya, "images") )
+    makeEmptyDirectory( os.path.join(maya, "scenes") )
 
-	maya = makeDirectory( os.path.join(cg, "maya") )
-	makeEmptyDirectory( os.path.join(maya, "images") )
-	makeEmptyDirectory( os.path.join(maya, "scenes") )
-
-	makeEmptyDirectory( os.path.join(shot, "comp") )
-	makeEmptyDirectory( os.path.join(shot, "dailies") )
-	makeEmptyDirectory( os.path.join(shot, "delivery") )
-	makeEmptyDirectory( os.path.join(shot, "plates") )
+    makeEmptyDirectory( os.path.join(shot, "comp") )
+    makeEmptyDirectory( os.path.join(shot, "dailies") )
+    makeEmptyDirectory( os.path.join(shot, "delivery") )
+    makeEmptyDirectory( os.path.join(shot, "plates") )
 
 def saveEnvironmentVariable( var, value ):
     os.system('bash -c \'echo "export {0}={1}" >> ~/.bashrc\''.format(var, value))
