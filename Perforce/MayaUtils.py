@@ -13,11 +13,13 @@ from PySide import QtGui
 import GlobalVars
 reload(GlobalVars)
 
+#Todo: Make these Utils things a class?
+
 p4_logger = logging.getLogger("Perforce")
 
 # Hacky way to load our icons, I don't fancy wrestling with resource files
 GlobalVars.iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/Perforce/images/"
-print GlobalVars.iconPath
+GlobalVars.sceneFiles = ['.ma', '.mb']
 
 def main_parent_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
@@ -28,3 +30,6 @@ def getCurrentSceneFile():
     
 def openScene(filePath):
     cmds.file(filePath, f=True, o=True)
+
+def closeWindow(ui):
+	cmds.deleteUI(ui)
