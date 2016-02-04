@@ -7,7 +7,7 @@ import platform
 from PySide import QtCore
 from PySide import QtGui
 
-from P4 import P4, P4Exception
+from P4 import P4, P4Exception, Progress, OutputHandler
 
 import Utils
 reload(Utils)
@@ -41,6 +41,178 @@ def displayErrorUI(e):
         
     error_ui.deleteLater()  
 
+
+class TestOutputAndProgress( Progress, OutputHandler ):
+    def __init__(self, ui):
+        Progress.__init__(self)
+        OutputHandler.__init__(self)
+        self.totalFiles = 0
+        self.totalSizes = 0
+        self.ui = ui
+        self.ui.setMinimum(0)
+        self.ui.setHandler(self)
+        
+        self.shouldCancel = False
+    
+    def setCancel(self, val):
+        self.shouldCancel = val
+    
+    def outputStat(self, stat):
+        if 'totalFileCount' in stat:
+            self.totalFileCount = int(stat['totalFileCount'])
+            print "TOTAL FILE COUNT: ", self.totalFileCount
+        if 'totalFileSize' in stat:
+            self.totalFileSize = int(stat['totalFileSize'])
+            print "TOTAL FILE SIZE: ", self.totalFileSize
+        if self.shouldCancel:
+            return OutputHandler.REPORT | OutputHandler.CANCEL
+        else:
+            return OutputHandler.HANDLED
+
+    def outputInfo(self, info):
+        AppUtils.refresh()
+        print "INFO :", info
+        if self.shouldCancel:
+            return OutputHandler.REPORT | OutputHandler.CANCEL
+        else:
+            return OutputHandler.HANDLED
+
+    def outputMessage(self, msg):
+        AppUtils.refresh()
+        print "Msg :", msg
+        
+        if self.shouldCancel:
+            return OutputHandler.REPORT | OutputHandler.CANCEL
+        else:
+            return OutputHandler.HANDLED
+
+    def init(self, type):
+        AppUtils.refresh()
+        print "Begin :", type
+        self.type = type
+        self.ui.incrementCurrent()
+        
+    def setDescription(self, description, unit):
+        AppUtils.refresh()
+        print "Desc :" ,description, unit
+        pass
+        
+    def setTotal(self, total):
+        AppUtils.refresh()
+        print "Total :", total
+        self.ui.setMaximum(total)
+        pass
+        
+    def update(self, position):
+        AppUtils.refresh()
+        print "Update : ", position
+        self.ui.setValue(position)
+        self.position = position
+        
+    def done(self, fail):
+        AppUtils.refresh()
+        print "Failed :", fail
+        self.fail = fail
+
+class SubmitProgressUI(QtGui.QDialog):
+    def __init__(self, totalFiles, parent=mainParent ):
+        super(SubmitProgressUI, self).__init__(parent)
+        self.handler = None
+        
+        self.totalFiles = totalFiles
+        
+        self.currentFile = 0
+        
+    def setHandler(self, handler):
+        self.handler = handler
+        
+    def setMaximum(self, val):
+        self.fileProgressBar.setMaximum(val)
+        
+    def setMinimum(self, val):
+        self.fileProgressBar.setMinimum(val)   
+        
+    def setValue(self, val):
+        self.fileProgressBar.setValue(val)        
+
+    def incrementCurrent(self):        
+        self.currentFile += 1
+        self.overallProgressBar.setValue(self.currentFile)
+        
+        print self.totalFiles, self.currentFile
+        
+        if self.currentFile >= self.totalFiles:
+            setComplete(True)
+
+    def setComplete(self, success):
+        if not success:
+            self.overallProgressBar.setTextVisible(True)
+            self.overallProgressBar.setFormat("Cancelled/Error")
+            
+            self.fileProgressBar.setTextVisible(True)
+            self.fileProgressBar.setFormat("Cancelled/Error")
+            
+        self.quitBtn.setText("Quit")
+        
+    def create(self, title, files = [] ):
+        path = iconPath + "p4.png"
+        icon = QtGui.QIcon(path)
+        
+        self.setWindowTitle(title)
+        self.setWindowIcon(icon)
+        self.setWindowFlags(QtCore.Qt.Dialog)
+        
+        self.create_controls()
+        self.create_layout()
+        self.create_connections()
+        
+        
+    def create_controls(self):
+        '''
+        Create the widgets for the dialog
+        '''
+        
+        self.overallProgressBar = QtGui.QProgressBar()
+        self.overallProgressBar.setMinimum(0)
+        self.overallProgressBar.setMaximum(self.totalFiles)
+        self.overallProgressBar.setValue(0)
+        
+        self.fileProgressBar = QtGui.QProgressBar()
+        self.fileProgressBar.setMinimum(0)
+        self.fileProgressBar.setMaximum(100)
+        self.fileProgressBar.setValue(0)
+        
+        self.quitBtn = QtGui.QPushButton("Cancel")
+        
+    def create_layout(self):
+        '''
+        Create the layouts and add widgets
+        '''
+        main_layout = QtGui.QVBoxLayout()
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        
+        formlayout1 = QtGui.QFormLayout()
+        formlayout1.addRow("Total Progress:", self.overallProgressBar)
+        formlayout1.addRow("File Progress:", self.fileProgressBar)
+        
+        main_layout.addLayout(formlayout1)
+        main_layout.addWidget(self.quitBtn)
+        self.setLayout(main_layout)
+                
+    def create_connections(self):
+        '''
+        Create the signal/slot connections
+        '''        
+        # self.fileTree.clicked.connect( self.loadFileLog )
+        self.quitBtn.clicked.connect( self.cancelProgress )
+
+    #--------------------------------------------------------------------------
+    # SLOTS
+    #--------------------------------------------------------------------------
+    
+    def cancelProgress(self, *args):
+        self.quitBtn.setText("Cancelling...")
+        self.handler.setCancel(True)
 
 class SubmitChangeUi(QtGui.QDialog):
     def __init__(self, parent=mainParent ):
@@ -197,9 +369,19 @@ class SubmitChangeUi(QtGui.QDialog):
                 files.append( self.fileList[i]['File'] )
                 
         keepCheckedOut = self.chkboxLockedWidget.checkState()
-                
+        
+        progress = SubmitProgressUI( len(files) )
+        progress.create("Submit Progress")
+
+        callback = TestOutputAndProgress(progress)
+
+        progress.show()
+
+        # self.p4.progress = callback 
+        # self.p4.handler = callback
+
         try:
-            Utils.submitChange(self.p4, files, str(self.descriptionWidget.toPlainText()), keepCheckedOut )
+            Utils.submitChange(self.p4, files, str(self.descriptionWidget.toPlainText()), callback, keepCheckedOut )
             if not keepCheckedOut:
                 clientFiles = []
                 for file in files:
@@ -212,7 +394,14 @@ class SubmitChangeUi(QtGui.QDialog):
                 Utils.removeReadOnlyBit(clientFiles) # Bug with windows, doesn't make files writable on submit for some reason
             self.close()
         except P4Exception as e:
+            self.p4.progress = None
+            self.p4.handler = None
             displayErrorUI(e)
+
+        progress.close()
+
+        self.p4.progress = None
+        self.p4.handler = None
 
     def validateText(self):
         text = self.descriptionWidget.toPlainText()
@@ -1346,6 +1535,8 @@ class PerforceUI:
         try:       
             files = self.p4.run_opened("-u", self.p4.user, "-C", self.p4.client, "...")
 
+            AppUtils.refresh()
+
             entries = []
             for file in files:
                 filePath = file['clientFile']
@@ -1357,6 +1548,8 @@ class PerforceUI:
                          }
 
                 entries.append(entry)
+
+            print "Submit Files : ", files
 
             self.submitUI.create( self.p4, entries )
             self.submitUI.show()

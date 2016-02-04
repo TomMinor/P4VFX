@@ -33,3 +33,6 @@ def openScene(filePath):
 
 def closeWindow(ui):
 	cmds.deleteUI(ui)
+
+def refresh():
+	cmds.refresh()

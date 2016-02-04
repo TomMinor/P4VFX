@@ -224,11 +224,16 @@ def parsePerforceError(e):
     
     return eMsg, type
 
-def submitChange(p4, files, description, keepCheckedOut = False):
+def submitChange(p4, files, description, callback, keepCheckedOut = False):
     # Shitty method #1
     p4_logger.info("Files Passed for submission = {0}".format(files))
     
+    print "Opened ", p4.run_opened("...")
+
     fullChangelist = p4.run_opened("-u", p4.user, "-C", p4.client, "...")
+    
+    if not fullChangelist:
+        raise P4Exception("File changelist is empty")
 
     fileList = []
     opened = [ p4.run_opened("-u", p4.user, "-C", p4.client, file)[0] for file in files ]
@@ -254,14 +259,20 @@ def submitChange(p4, files, description, keepCheckedOut = False):
         p4.run_revert("-k", notSubmitted)
 
     try:
+        p4.progress = callback 
+        p4.handler = callback
+
         if keepCheckedOut:
-            result = p4.run_submit("-r", "-d", description)
+            result = p4.run_submit("-r", "-d", description, progress=callback, handler=callback)
         else:
-            result = p4.run_submit("-d", description)
+            result = p4.run_submit("-d", description, progress=callback, handler=callback)
         p4_logger.info(result)
     except P4Exception as e:
         p4_logger.warning(e)
         raise e
+
+    p4.progress = None
+    p4.handler = None
 
     # change = p4.fetch_change()
 
