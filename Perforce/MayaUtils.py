@@ -1,19 +1,19 @@
 import os
 import logging
 
-import maya.mel
-import maya.utils as mu
+# import maya.mel
+# import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
 from shiboken import wrapInstance
 
-from PySide import QtCore
+# from PySide import QtCore
 from PySide import QtGui
 
 import GlobalVars
 reload(GlobalVars)
 
-#Todo: Make these Utils things a class?
+# Todo: Make these Utils things a class?
 
 p4_logger = logging.getLogger("Perforce")
 
@@ -21,18 +21,23 @@ p4_logger = logging.getLogger("Perforce")
 GlobalVars.iconPath = os.environ['MAYA_APP_DIR'] + "/scripts/Perforce/images/"
 GlobalVars.sceneFiles = ['.ma', '.mb']
 
+
 def main_parent_window():
     main_window_ptr = omui.MQtUtil.mainWindow()
     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
 
+
 def getCurrentSceneFile():
     return cmds.file(q=True, sceneName=True)
-    
+
+
 def openScene(filePath):
     cmds.file(filePath, f=True, o=True)
 
+
 def closeWindow(ui):
-	cmds.deleteUI(ui)
+    cmds.deleteUI(ui)
+
 
 def refresh():
-	cmds.refresh()
+    cmds.refresh()
