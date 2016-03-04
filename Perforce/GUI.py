@@ -3,6 +3,7 @@ import re
 import traceback
 import logging
 import platform
+from distutils.version import StrictVersion
 
 from PySide import QtCore
 from PySide import QtGui
@@ -18,6 +19,10 @@ reload(Utils)
 reload(AppUtils)
 reload(GlobalVars)
 reload(Callbacks)
+
+
+version = '1.1.0'
+
 
 mainParent = AppUtils.main_parent_window()
 
@@ -1058,38 +1063,42 @@ class PerforceUI:
 
         self.p4.cwd = self.p4.fetch_client()['Root']
 
-    def __del__(self):
+    def close(self):
         try:
             self.revisionUi.deleteLater()
-        except:
-            pass
+        except Exception as e:
+            print "Error cleaning up P4 revision UI : ", e
 
         try:
             self.openedUi.deleteLater()
-        except:
-            pass
+        except Exception  as e:
+            print "Error cleaning up P4 opened UI : ", e
 
         try:
-            cmds.deleteUI(self.perforceMenu)
-        except:
-            pass
+            # Deleting maya menus is bad, but this is a dumb way of error checking
+            if "PerforceMenu" in self.perforceMenu:
+                AppUtils.closeWindow(self.perforceMenu)
+            else:
+                raise RuntimeError("Menu name doesn't seem to belong to Perforce, not deleting")
+        except Exception  as e:
+            print "Error cleaning up P4 menu : ", e
 
         try:
             self.submitUI.deleteLater()
-        except:
-            pass
+        except Exception  as e:
+            print "Error cleaning up P4 submit UI : ", e
 
         p4_logger.info("Disconnecting from server")
         try:
             self.p4.disconnect()
-        except:
-            pass
+        except Exception  as e:
+            print "Error disconnecting P4 daemon : ", e
 
     def addMenu(self):
-        try:
-            AppUtils.closeWindow(self.perforceMenu)
-        except:
-            pass
+        # try:
+        #     AppUtils.closeWindow(self.perforceMenu)
+        # except:
+        #     pass
 
         import maya.mel
         # import maya.utils as mu
@@ -1098,8 +1107,7 @@ class PerforceUI:
         # from shiboken import wrapInstance
 
         gMainWindow = maya.mel.eval('$temp1=$gMainWindow')
-        self.perforceMenu = cmds.menu(
-        parent=gMainWindow, tearOff=True, label='Perforce')
+        self.perforceMenu = cmds.menu("PerforceMenu", parent=gMainWindow, tearOff=True, label='Perforce')
 
         # %TODO Move these to MayaUtils
         # %TODO Hard coded icons are bad?
@@ -1160,6 +1168,8 @@ class PerforceUI:
         cmds.menuItem(label="Debug", divider=True)
         cmds.menuItem(label="Delete all pending changes",                      image=os.path.join(
             iconPath, "File0280.png"), command=self.deletePending)
+        cmds.setParent( '..', menu=True )
+        cmds.menuItem(label="Version {0}".format(version), en=False)
 
     def changePasswd(self, *args):
         return NotImplementedError("Use p4 passwd")
@@ -1623,19 +1633,18 @@ class PerforceUI:
         except P4Exception as e:
             displayErrorUI(e)
 
-try:
-    AppUtils.closeWindow(ui.perforceMenu)
-except:
-    ui = None
-
+# try:
+#     AppUtils.closeWindow(ui.perforceMenu)
+# except:
+#     ui = None
 
 def init():
     global ui
-    try:
-        # cmds.deleteUI(ui.perforceMenu)
-        AppUtils.closeWindow(ui.perforceMenu)
-    except:
-        pass
+    # try:
+    #     # cmds.deleteUI(ui.perforceMenu)
+    #     AppUtils.closeWindow(ui.perforceMenu)
+    # except:
+    #     pass
 
     p4 = P4()
     print p4.p4config_file
@@ -1659,13 +1668,15 @@ def close():
 
     Callbacks.cleanupCallbacks()
 
-    try:
-        # cmds.deleteUI(ui.perforceMenu)
-        AppUtils.closeWindow(ui.perforceMenu)
-    except Exception as e:
-        raise e
+    # try:
+    #     # cmds.deleteUI(ui.perforceMenu)
+    #     AppUtils.closeWindow(ui.perforceMenu)
+    # except Exception as e:
+    #     raise e
 
-    del ui
+    ui.close()
+
+    #del ui
 
 
 # %Todo Implement this >>
