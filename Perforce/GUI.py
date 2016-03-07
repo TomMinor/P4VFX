@@ -21,7 +21,7 @@ reload(GlobalVars)
 reload(Callbacks)
 
 
-version = '1.1.0'
+version = '1.1.1'
 
 
 mainParent = AppUtils.main_parent_window()
