@@ -1,20 +1,27 @@
 import maya.OpenMaya as api
+import maya.cmds as cmds
 import os
+
+import Utils
 
 contactrootenv = "CONTACTROOT"
 referenceCallback = None
-submitCallback = None
+saveCallback = None
+
+def validateSubmit():
+    print "Validating submission"
+    return 0
 
 def cleanupCallbacks():
     if referenceCallback:
         api.MCommandMessage.removeCallback(referenceCallback)
 
-    if submitCallback:
-        pass
-
+    if saveCallback:
+        api.MCommandMessage.removeCallback(saveCallback)
 
 def initCallbacks():
     global referenceCallback
+    global saveCallback
 
     cleanupCallbacks()
 
@@ -22,6 +29,17 @@ def initCallbacks():
         api.MSceneMessage.kBeforeCreateReferenceCheck,
         referenceCallbackFunc)
 
+    saveCallback = api.MSceneMessage.addCallback(
+        api.MSceneMessage.kAfterSave,
+        saveCallbackFunc)
+
+
+def saveCallbackFunc(*args):
+    fileName = cmds.file(q=True, sceneName=True)
+
+    if ".ma" in fileName:
+        print "Save callback: Checking file {0} for education flags".format(fileName)
+        Utils.removeStudentTag(fileName)
 
 def referenceCallbackFunc(inputBool, inputFile, *args):
     api.MScriptUtil.getBool(inputBool)

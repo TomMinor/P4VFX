@@ -21,7 +21,7 @@ reload(GlobalVars)
 reload(Callbacks)
 
 
-version = '1.1.1'
+version = '1.1.2'
 
 
 mainParent = AppUtils.main_parent_window()
@@ -392,6 +392,16 @@ class SubmitChangeUi(QtGui.QDialog):
 
         # self.p4.progress = callback
         # self.p4.handler = callback
+
+        # Remove student setting from .ma
+        for submitFile in files:
+            if ".ma" in submitFile:
+                try:
+                    pathData = self.p4.run_where(submitFile)[0]
+                    Utils.removeStudentTag(pathData['path'])
+                except P4Exception as e:
+                    print e
+
 
         try:
             Utils.submitChange(self.p4, files, str(
