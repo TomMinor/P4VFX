@@ -60,7 +60,10 @@ def makeDirectory(path):
 	return path
 
 def makeEmptyFile(path):
-	open(path, 'a').close()
+    try:
+        open(path, 'a').close()
+    except IOError as e:
+        print e
 
 def makeEmptyDirectory(path):
 	if not os.path.exists(path):
