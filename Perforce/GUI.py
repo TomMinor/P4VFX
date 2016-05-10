@@ -21,7 +21,7 @@ reload(GlobalVars)
 reload(Callbacks)
 
 
-version = '1.1.2'
+version = '1.1.3'
 
 
 mainParent = AppUtils.main_parent_window()
@@ -1143,10 +1143,9 @@ class PerforceUI:
         cmds.menuItem(label="Depot Commands", divider=True)
         cmds.menuItem(label="Submit Change",                        image=os.path.join(
             iconPath, "File0107.png"), command=self.submitChange)
-        cmds.menuItem(label="Sync All",                             image=os.path.join(
-            iconPath, "File0175.png"), command=self.syncAll)
-        cmds.menuItem(label="Sync All References",                  image=os.path.join(
-            iconPath, "File0320.png"), command=self.syncAll, en=False)
+        cmds.menuItem(label="Sync All",                             image=os.path.join(iconPath, "File0175.png"), command=self.syncAllChanged)
+        cmds.menuItem(label="Sync All - Force",                     image=os.path.join(iconPath, "File0175.png"), command=self.syncAll)
+        cmds.menuItem(label="Sync All References",                  image=os.path.join(iconPath, "File0320.png"), command=self.syncAllChanged, en=False)
         #cmds.menuItem(label="Get Latest Scene",                    image = os.path.join(iconPath, "File0275.png"), command = self.syncFile                 )
         cmds.menuItem(label="Show Depot History",                   image=os.path.join(
             iconPath, "File0279.png"), command=self.fileRevisions)
@@ -1639,6 +1638,13 @@ class PerforceUI:
     def syncAll(self, *args):
         try:
             self.p4.run_sync("-f", "...")
+            p4_logger.info("Got latest revisions for client")
+        except P4Exception as e:
+            displayErrorUI(e)
+
+    def syncAllChanged(self, *args):
+        try:
+            self.p4.run_sync("...")
             p4_logger.info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
