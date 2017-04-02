@@ -22,7 +22,7 @@ set P4CONFIG=.p4config
 set P4CONFIGPATH=%INSTALLPATH%\%P4CONFIG%
 
 cd /d %~dp0
-Set  StartInDirectory= %cd%
+Set  StartInDirectory= %cd%\..
 
 set CURRENTDIR=%StartInDirectory%
 

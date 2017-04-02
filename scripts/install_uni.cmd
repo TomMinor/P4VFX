@@ -10,7 +10,7 @@ set P4CONFIGPATH=%HOME%\%P4CONFIG%
 type NUL > %P4CONFIGPATH%
 
 cd /d %~dp0
-Set  StartInDirectory= %cd%
+Set  StartInDirectory= %cd%\..
 
 set CURRENTDIR=%StartInDirectory%
 
