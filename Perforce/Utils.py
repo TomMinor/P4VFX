@@ -187,6 +187,9 @@ def writeToP4Config(config, key, value):
     
     p4_logger.info("Writing {0}:{1} to config {2}".format(key, value, config))
 
+    if config == 'noconfig':
+        raise RuntimeError('No configuration file found (%s)' % config)
+
     try:
         for line in fileinput.input(config, inplace=True):
             result = line

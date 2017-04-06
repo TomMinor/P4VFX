@@ -1282,16 +1282,17 @@ class PerforceUI:
         if username:
             Utils.writeToP4Config(self.p4.p4config_file,
                                   "P4USER", str(username[0]))
-        if password:
-            Utils.writeToP4Config(self.p4.p4config_file,
-                                  "P4PASSWD", str(password[0]))
+            
+        # if password:
+        #     Utils.writeToP4Config(self.p4.p4config_file,
+        #                           "P4PASSWD", str(password[0]))
 
     def setCurrentWorkspace(self, *args):
         workspacePath = QtGui.QFileDialog.getExistingDirectory(
             mainParent, "Select existing workspace")
 
         for client in self.p4.run_clients():
-            if workspacePath == client['Root']:
+            if workspacePath.replace("\\","/") == client['Root'].replace("\\","/"):
                 root, client = os.path.split(str(workspacePath))
                 self.p4.client = client
 
@@ -1663,7 +1664,8 @@ def init():
     #     pass
 
     p4 = P4()
-    print p4.p4config_file
+    if p4.p4config_file == 'noconfig':
+        Utils.loadP4Config(p4)
     print p4.client
     print p4.port
 
