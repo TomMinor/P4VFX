@@ -176,92 +176,91 @@ class TreeModel(QtCore.QAbstractItemModel):
         self.rootItem = TreeItem(None)
         self.showDeleted = False
 
-    def populate(self, rootdir="//depot", findDeleted=False):
-        self.rootItem = TreeItem(None)
-        self.showDeleted = findDeleted
+    # def populate(self, rootdir="//depot", findDeleted=False):
+    #     self.rootItem = TreeItem(None)
+    #     self.showDeleted = findDeleted
 
-        depotPath = False
-        if "depot" in rootdir:
-            depotPath = True
+    #     depotPath = False
+    #     if "depot" in rootdir:
+    #         depotPath = True
 
-        p4path = '/'.join([rootdir, '*'])
+    #     p4path = '/'.join([rootdir, '*'])
 
-        if depotPath:
-            dirs = p4.run_dirs(p4path)
-        else:
-            dirs = p4.run_dirs('-H', p4path)
+    #     if depotPath:
+    #         dirs = p4.run_dirs(p4path)
+    #     else:
+    #         dirs = p4.run_dirs('-H', p4path)
 
-        for dir in dirs:
-            dirName = os.path.basename(dir['dir'])
-            # subDir = '/'.join( [rootdir, dirName )] )
-            data = [dirName, "Folder", "", "", ""]
+    #     for dir in dirs:
+    #         dirName = os.path.basename(dir['dir'])
+    #         subDir = '/'.join( [rootdir, dirName )] )
+    #         data = [dirName, "Folder", "", "", ""]
 
-            treeItem = TreeItem(data, self.rootItem)
-            self.rootItem.appendChild(treeItem)
+    #         treeItem = TreeItem(data, self.rootItem)
+    #         self.rootItem.appendChild(treeItem)
 
-            treeItem.appendChild(None)
+    #         treeItem.appendChild(None)
 
-            files = p4Filelist(dir['dir'], findDeleted)
+    #         files = p4Filelist(dir['dir'], findDeleted)
 
-            for f in files:
-                fileName = os.path.basename(f['name'])
-                data = [fileName, f['type'], f[
-                    'time'], f['action'], f['change']]
+    #         for f in files:
+    #             fileName = os.path.basename(f['name'])
+    #             data = [fileName, f['type'], f[
+    #                 'time'], f['action'], f['change']]
 
-                fileItem = TreeItem(data, treeItem)
-                treeItem.appendChild(fileItem)
+    #             fileItem = TreeItem(data, treeItem)
+    #             treeItem.appendChild(fileItem)
 
-    # def populate(self, rootdir):
-    #     rootdir = rootdir.replace('\\', '/')
+    def populate(self, rootdir, findDeleted=False):
+        rootdir = rootdir.replace('\\', '/')
 
-    #     print "Scanning subfolders in {0}...".format(rootdir)
+        print "Scanning subfolders in {0}...".format(rootdir)
 
-        # import maya.cmds as cmds
-        # cmds.refresh()
+        import maya.cmds as cmds
+        cmds.refresh()
 
-        # def scanDirectoryPerforce(root, treeItem):
-        #     change = p4.run_opened()
+        def scanDirectoryPerforce(root, treeItem):
+            change = p4.run_opened()
 
-        #     for item in perforceListDir(root):
-        # itemPath = "{0}/{1}".format(root, item['name'] ) # os.path.join(root, item)
-        # print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+'
-        # if perforceIsDir(itemPath) else '-', item['name'] )
+            for item in perforceListDir(root):
+                itemPath = "{0}/{1}".format(root, item['name'] ) # os.path.join(root, item)
+                # print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+'
+                if perforceIsDir(itemPath) else '-', item['name'] )
+                data = [ item['name'], item['type'], item['time'], item['change'] ]
 
-        #         data = [ item['name'], item['type'], item['time'], item['change'] ]
+                childDir = TreeItem( data, treeItem)
+                treeItem.appendChild( childDir )
 
-        #         childDir = TreeItem( data, treeItem)
-        #         treeItem.appendChild( childDir )
+                tmpDir = TreeItem( [ "TMP", "", "", "" ], childDir )
+                childDir.appendChild( None )
 
-        #         tmpDir = TreeItem( [ "TMP", "", "", "" ], childDir )
-        #         childDir.appendChild( None )
+                print itemPath, perforceIsDir( itemPath )
+                if perforceIsDir( itemPath ):
+                    scanDirectoryPerforce(itemPath, childDir)
 
-        # print itemPath, perforceIsDir( itemPath )
-        # if perforceIsDir( itemPath ):
-        # scanDirectoryPerforce(itemPath, childDir)
+        def scanDirectory(root, treeItem):
+            for item in os.listdir(root):
+                itemPath = os.path.join(root, item)
+                # print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+' if os.path.isdir(itemPath) else '-', item)
+                childDir = TreeItem( [item], treeItem)
+                treeItem.appendChild( childDir )
+                if os.path.isdir( itemPath ):
+                    scanDirectory(itemPath, childDir)
 
-        # def scanDirectory(root, treeItem):
-        #     for item in os.listdir(root):
-        #         itemPath = os.path.join(root, item)
-        #         print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+' if os.path.isdir(itemPath) else '-', item)
-        #         childDir = TreeItem( [item], treeItem)
-        #         treeItem.appendChild( childDir )
-        #         if os.path.isdir( itemPath ):
-        #             scanDirectory(itemPath, childDir)
+        scanDirectoryPerforce(rootdir, self.rootItem )
 
-        # scanDirectoryPerforce(rootdir, self.rootItem )
+        print dirName
+        directory = "{0}:{1}".format(i, os.path.basename(dirName))
+        childDir = TreeItem( [directory], self.rootItem)
+        self.rootItem.appendChild( childDir )
 
-        # print dirName
-        # directory = "{0}:{1}".format(i, os.path.basename(dirName))
-        # childDir = TreeItem( [directory], self.rootItem)
-        # self.rootItem.appendChild( childDir )
+        for fname in fileList:
+           childFile = TreeItem(fname, childDir)
+           childDir.appendChild([childFile])
 
-        # for fname in fileList:
-        #    childFile = TreeItem(fname, childDir)
-        #    childDir.appendChild([childFile])
-
-        #        for i,c  in enumerate("abcdefg"):
-        #           child = TreeItem([i],self.rootItem)
-        #           self.rootItem.appendChild(child)
+        for i,c  in enumerate("abcdefg"):
+            child = TreeItem([i],self.rootItem)
+            self.rootItem.appendChild(child)
 
     def columnCount(self, parent):
         return 5
@@ -281,16 +280,16 @@ class TreeModel(QtCore.QAbstractItemModel):
                 isDeleted = index.internalPointer().data[3] == 'delete'
 
                 if isDeleted:
-                    return QtGui.QIcon(r"/home/i7245143/src/MayaPerforce/Perforce/images/File0104.png")
+                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0104.png")
 
                 if itemType == "Folder":
-                    return QtGui.QIcon(r"/home/i7245143/src/MayaPerforce/Perforce/images/File0059.png")
+                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0059.png")
                 elif "binary" in itemType:
-                    return QtGui.QIcon(r"/home/i7245143/src/MayaPerforce/Perforce/images/File0315.png")
+                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0315.png")
                 elif "text" in itemType:
-                    return QtGui.QIcon(r"/home/i7245143/src/MayaPerforce/Perforce/images/File0027.png")
+                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0027.png")
                 else:
-                    return QtGui.QIcon(r"/home/i7245143/src/MayaPerforce/Perforce/images/File0106.png")
+                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0106.png")
 
                 icon = QtGui.QFileIconProvider(QtGui.QFileIconProvider.Folder)
                 return icon
@@ -360,18 +359,25 @@ class TreeModel(QtCore.QAbstractItemModel):
 # from collections import defaultdict
 # deepestIndex, deepestPath = max(enumerate(files), key = lambda tup: len(tup[1]))
 
+p4 = P4()
+p4.user = "tom.minor"
+p4.password = "***REMOVED***"
+p4.port = "104.155.108.7:1666"
+p4.connect()
+p4.run_login()
 
-try:
-    print p4
-except:
-    p4 = P4()
-    p4.user = "tminor"
-    p4.password = "contact_dev"
-    p4.port = "ssl:52.17.163.3:1666"
-    p4.connect()
-    p4.run_login()
 
-reconnect()
+# try:
+#     print p4
+# except:
+#     p4 = P4()
+#     p4.user = "tminor"
+#     p4.password = "contact_dev"
+#     p4.port = "ssl:52.17.163.3:1666"
+#     p4.connect()
+#     p4.run_login()
+
+# reconnect()
 
 # Iterate upwards until we have the full path to the node
 

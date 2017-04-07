@@ -181,7 +181,10 @@ def loadP4Config(p4):
                     p4_logger.info("Setting {0}={1}".format(key,value))
                     p4.set_env(key, value)
 
+# ToDo rewrite this AWFUL function
 def writeToP4Config(config, key, value):
+    return
+
     found = False
     fileinput.close()
     
