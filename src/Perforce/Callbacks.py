@@ -14,10 +14,17 @@ def validateSubmit():
 
 def cleanupCallbacks():
     if referenceCallback:
-        api.MCommandMessage.removeCallback(referenceCallback)
+        try:
+            api.MCommandMessage.removeCallback(referenceCallback)
+        except RuntimeError as e:
+            print e
 
     if saveCallback:
-        api.MCommandMessage.removeCallback(saveCallback)
+        try:
+            api.MCommandMessage.removeCallback(saveCallback)
+        except RuntimeError as e:
+            print e
+
 
 def initCallbacks():
     global referenceCallback
