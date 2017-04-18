@@ -6,11 +6,11 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def setupTestingEnvironment():
-        raise NotImplementedError
+        pass
 
     @staticmethod
     def main_parent_window():
-        raise NotImplementedError
+        return None
 
     @staticmethod
     def createMenu(entries):

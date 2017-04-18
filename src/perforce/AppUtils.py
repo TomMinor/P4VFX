@@ -5,6 +5,9 @@ import logging
 
 import perforce.Utils as Utils
 
+def importClass(className):
+    mod = __import__('perforce.%s' % className, fromlist=[className])
+    return getattr(mod, className)
 
 def in_unittest():
     # http://stackoverflow.com/questions/25025928/how-can-a-piece-of-python-code-tell-if-its-running-under-unittest
@@ -26,13 +29,14 @@ if re.match("maya", os.path.basename(sys.executable), re.I):
         pass
 
     Utils.p4Logger().info("Configuring for Maya")
-    import MayaInterop as DCCInterop
+    DCCInterop = importClass('MayaInterop')
 elif re.match("nuke", os.path.basename(sys.executable), re.I):
     Utils.p4Logger().info("Configuring for Nuke")
-    import NukeInterop as DCCInterop
+    DCCInterop = importClass('NukeInterop')
 elif in_unittest:
     Utils.p4Logger().info("Configuring for testing")
-    import TestInterop as DCCInterop
+    DCCInterop = importClass('TestInterop')
+
 else:
     Utils.p4Logger().warning("Couldn't find app configuration")
     raise ImportError(
