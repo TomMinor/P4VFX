@@ -3,7 +3,7 @@ from P4 import P4, P4Exception
 from PySide import QtCore
 from PySide import QtGui
 
-import Perforce.Utils as Utils
+import perforce.Utils as Utils
 
 class TreeItem(object):
 

@@ -8,10 +8,8 @@ from P4 import P4, P4Exception
 from PySide import QtCore
 from PySide import QtGui
 
-import Perforce.Utils as Utils
-from Perforce.MayaInterop import MayaInterop as DCCInterop
-
-
+import perforce.Utils as Utils
+from perforce.AppUtils import DCCInterop
 
 class PerforceUI:
 
@@ -59,7 +57,7 @@ class PerforceUI:
 
         try:
             self.openedUi.deleteLater()
-        except Exception  as e:
+        except Exception as e:
             print "Error cleaning up P4 opened UI : ", e
 
         # try:
@@ -73,13 +71,13 @@ class PerforceUI:
 
         try:
             self.submitUI.deleteLater()
-        except Exception  as e:
+        except Exception as e:
             print "Error cleaning up P4 submit UI : ", e
 
         Utils.p4Logger().info("Disconnecting from server")
         try:
             self.p4.disconnect()
-        except Exception  as e:
+        except Exception as e:
             print "Error disconnecting P4 daemon : ", e
 
     def addMenu(self):
@@ -92,36 +90,52 @@ class PerforceUI:
         iconPath = DCCInterop.getIconPath()
 
         menuEntries = [
-            {'label': "Client Commands",            'divider': True },
-            {'label': "Checkout File(s)",           'image': os.path.join(iconPath, "File0078.png"), 'command': self.checkoutFile},
-            {'label': "Checkout Folder",            'image': os.path.join(iconPath, "File0186.png"), 'command': self.checkoutFolder},
-            {'label': "Mark for Delete",            'image': os.path.join(iconPath, "File0253.png"), 'command': self.deleteFile},
-            {'label': "Show Changelist",            'image': os.path.join(iconPath, "File0252.png"), 'command': self.queryOpened},
-            {'label': "Depot Commands",             'divider': True },
-            {'label': "Submit Change",              'image': os.path.join(iconPath, "File0107.png"), 'command': self.submitChange},
-            {'label': "Sync All",                   'image': os.path.join(iconPath, "File0175.png"), 'command': self.syncAllChanged},
-            {'label': "Sync All - Force",           'image': os.path.join(iconPath, "File0175.png"), 'command': self.syncAll},
+            {'label': "Client Commands",            'divider': True},
+            {'label': "Checkout File(s)",           'image': os.path.join(
+                iconPath, "File0078.png"), 'command': self.checkoutFile},
+            {'label': "Checkout Folder",            'image': os.path.join(
+                iconPath, "File0186.png"), 'command': self.checkoutFolder},
+            {'label': "Mark for Delete",            'image': os.path.join(
+                iconPath, "File0253.png"), 'command': self.deleteFile},
+            {'label': "Show Changelist",            'image': os.path.join(
+                iconPath, "File0252.png"), 'command': self.queryOpened},
+            {'label': "Depot Commands",             'divider': True},
+            {'label': "Submit Change",              'image': os.path.join(
+                iconPath, "File0107.png"), 'command': self.submitChange},
+            {'label': "Sync All",                   'image': os.path.join(
+                iconPath, "File0175.png"), 'command': self.syncAllChanged},
+            {'label': "Sync All - Force",
+                'image': os.path.join(iconPath, "File0175.png"), 'command': self.syncAll},
             # {'label': "Sync All References",        'image': os.path.join(iconPath, "File0320.png"), 'command': self.syncAllChanged},
             #{'label': "Get Latest Scene",          'image': os.path.join(iconPath, "File0275.png"), command = self.syncFile},
-            {'label': "Show Depot History",         'image': os.path.join(iconPath, "File0279.png"), 'command': self.fileRevisions},
+            {'label': "Show Depot History",         'image': os.path.join(
+                iconPath, "File0279.png"), 'command': self.fileRevisions},
 
             {'label': "Scene",                      'divider': True},
-            {'label': "File Status",                'image': os.path.join(iconPath, "File0409.png"), 'command': self.querySceneStatus},
+            {'label': "File Status",                'image': os.path.join(
+                iconPath, "File0409.png"), 'command': self.querySceneStatus},
 
             {'label': "Utility",                    'divider': True},
-            {'label': "Create Asset",               'image': os.path.join(iconPath, "File0352.png"), 'command': self.createAsset},
-            {'label': "Create Shot",                'image': os.path.join(iconPath, "File0104.png"), 'command': self.createShot},
+            {'label': "Create Asset",               'image': os.path.join(
+                iconPath, "File0352.png"), 'command': self.createAsset},
+            {'label': "Create Shot",                'image': os.path.join(
+                iconPath, "File0104.png"), 'command': self.createShot},
             # Submenu
             {
                 'label': "Miscellaneous",           'image': os.path.join(iconPath, "File0411.png"), 'entries': [
                     {'label': "Server",                     'divider': True},
-                    {'label': "Login as user",              'image': os.path.join(iconPath, "File0077.png"),    'command': self.loginAsUser},
-                    {'label': "Server Info",                'image': os.path.join(iconPath, "File0031.png"),    'command': self.queryServerStatus},
+                    {'label': "Login as user",              'image': os.path.join(
+                        iconPath, "File0077.png"),    'command': self.loginAsUser},
+                    {'label': "Server Info",                'image': os.path.join(
+                        iconPath, "File0031.png"),    'command': self.queryServerStatus},
                     {'label': "Workspace",                  'divider': True},
-                    {'label': "Create Workspace",           'image': os.path.join(iconPath, "File0238.png"),    'command': self.createWorkspace},
-                    {'label': "Set Current Workspace",      'image': os.path.join(iconPath, "File0044.png"),    'command': self.setCurrentWorkspace},
+                    {'label': "Create Workspace",           'image': os.path.join(
+                        iconPath, "File0238.png"),    'command': self.createWorkspace},
+                    {'label': "Set Current Workspace",      'image': os.path.join(
+                        iconPath, "File0044.png"),    'command': self.setCurrentWorkspace},
                     {'label': "Debug",                      'divider': True},
-                    {'label': "Delete all pending changes", 'image': os.path.join(iconPath, "File0280.png"),    'command': self.deletePending}
+                    {'label': "Delete all pending changes", 'image': os.path.join(
+                        iconPath, "File0280.png"),    'command': self.deletePending}
                 ]
             }
         ]
@@ -240,11 +254,12 @@ class PerforceUI:
             mainParent, "Select existing workspace")
 
         for client in self.p4.run_clients():
-            if workspacePath.replace("\\","/") == client['Root'].replace("\\","/"):
+            if workspacePath.replace("\\", "/") == client['Root'].replace("\\", "/"):
                 root, client = os.path.split(str(workspacePath))
                 self.p4.client = client
 
-                Utils.p4Logger().info("Setting current client to {0}".format(client))
+                Utils.p4Logger().info(
+                    "Setting current client to {0}".format(client))
                 # REALLY make sure we save the P4CLIENT variable
                 if platform.system() == "Linux" or platform.system() == "Darwin":
                     os.environ['P4CLIENT'] = self.p4.client

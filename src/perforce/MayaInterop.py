@@ -6,14 +6,90 @@ import maya.mel as mel
 # import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
-from shiboken import wrapInstance
+# from shiboken import wrapInstance
+import maya.OpenMaya as api
 
 from PySide import QtCore
 from PySide import QtGui
 
 import GlobalVars
-from Version import __version__
-from BaseInterop import BaseInterop
+from version import __version__
+from BaseInterop import BaseInterop, BaseCallbacks
+
+
+class MayaCallbacks(BaseCallbacks):
+    contactrootenv = "CONTACTROOT"
+    referenceCallback = None
+    saveCallback = None
+
+    def validateSubmit():
+        print "Validating submission"
+        return 0
+
+    def cleanupCallbacks():
+        if referenceCallback:
+            try:
+                api.MCommandMessage.removeCallback(referenceCallback)
+            except RuntimeError as e:
+                print e
+
+        if saveCallback:
+            try:
+                api.MCommandMessage.removeCallback(saveCallback)
+            except RuntimeError as e:
+                print e
+
+
+    def initCallbacks():
+        cleanupCallbacks()
+
+        referenceCallback = api.MSceneMessage.addCheckFileCallback(
+            api.MSceneMessage.kBeforeCreateReferenceCheck,
+            referenceCallbackFunc)
+
+        saveCallback = api.MSceneMessage.addCallback(
+            api.MSceneMessage.kAfterSave,
+            saveCallbackFunc)
+
+
+    def saveCallbackFunc(*args):
+        fileName = cmds.file(q=True, sceneName=True)
+
+        if ".ma" in fileName:
+            print "Save callback: Checking file {0} for education flags".format(fileName)
+            Utils.removeStudentTag(fileName)
+
+    def referenceCallbackFunc(inputBool, inputFile, *args):
+        api.MScriptUtil.getBool(inputBool)
+
+        print "Reference callback: Checking file {0}".format(os.environ[contactrootenv])
+
+        try:
+            contactrootpath = os.environ[contactrootenv]
+        except KeyError as e:
+            print "Error", e
+            api.MScriptUtil.setBool(inputBool, True)
+            return
+
+        rawpath = inputFile.rawPath()
+        rawname = inputFile.rawName()
+        oldpath = rawpath
+        if contactrootpath in rawpath:
+            rawpath = rawpath.replace(
+                contactrootpath, "${0}".format(contactrootenv))
+            inputFile.setRawPath(rawpath)
+            print "Remapped {0} -> {1}".format(oldpath, rawpath)
+
+        if contactrootenv in rawpath:
+            resolvedName = os.path.join(rawpath.replace("${0}".format(contactrootenv), contactrootpath), rawname)
+            print rawpath, "->", resolvedName
+            inputFile.overrideResolvedFullName(resolvedName)
+
+        # print "RAWPATH", inputFile.rawPath()
+        # print "RAWFULLNAME", inputFile.rawFullName()
+        # print "RAWEXPANDEDPATH", inputFile.expandedPath()
+
+        api.MScriptUtil.setBool(inputBool, True)
 
 
 
@@ -62,19 +138,9 @@ class MayaInterop(BaseInterop):
             print e
             batchmode = True
 
-        def fillMenu(entries, debugPrint=False, indent=0):
-            if debugPrint:
-                debugIndent = '\t' * indent
-
+        def fillMenu(entries):
             for entry in entries:
                 if entry.get('divider'):
-                    # Create divider
-                    if debugPrint:
-                        print debugIndent,
-                        if entry.get('label'):
-                            print entry['label'],
-                        print '-'*50
-
                     try:
                         cmds.menuItem(divider=True, label=entry.get('label'))
                     except RuntimeError as e:
@@ -82,20 +148,13 @@ class MayaInterop(BaseInterop):
                         print e
 
                 elif entry.get('entries'):
-                    # Create submenu
-                    if debugPrint:
-                        print debugIndent,
-                        print '>>>',
-                        if entry.get('label'):
-                            print entry['label']
-
                     try:
                         cmds.menuItem(subMenu=True, tearOff=False, label=entry.get('label'), image=entry.get('image'))
                     except RuntimeError as e:
                         print 'Maya error while trying to create submenu:',
                         print e
 
-                    fillMenu( entry['entries'], debugPrint, indent+1)
+                    fillMenu( entry['entries'] )
 
                     try:
                         cmds.setParent('..', menu=True )
@@ -103,11 +162,6 @@ class MayaInterop(BaseInterop):
                         print 'Maya error while trying to change menu parent:',
                         print e
                 elif entry.get('command'):
-                    # Add an entry
-                    if debugPrint:
-                        print debugIndent,
-                        print '|' + entry.get('label')
-
                     try:
                         cmds.menuItem(  label=entry.get('label'),
                                         image=entry.get('image'),
@@ -118,17 +172,13 @@ class MayaInterop(BaseInterop):
                 else:
                     raise ValueError('Unknown entry type')
             
-            # Add a readonly version entry
-            if debugPrint:
-                print debugIndent,
-                print '|' + __version__
             try:
                 cmds.menuItem(label="Version {0}".format(__version__), en=False)
             except RuntimeError as e:
                 print 'Maya error while trying to add menu entry:',
                 print e
 
-        fillMenu(entries, debugPrint=batchmode)
+        fillMenu(entries)
 
     @staticmethod
     def getIconPath():

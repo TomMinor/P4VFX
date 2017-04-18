@@ -5,10 +5,10 @@ except ImportError as e:
 	print 'Ensure P4API is installed into your DCC script paths'
 	raise e
 
-import AppUtils
+import logging
+logging.basicConfig(level=logging.INFO)
 
-if __name__ == '__main__':
-	AppUtils.Utils.setupTestingEnvironment()
+import AppUtils
 
 import GUI
 reload(GUI)

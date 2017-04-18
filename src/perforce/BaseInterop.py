@@ -1,6 +1,23 @@
 import tempfile
 
+
+class BaseCallbacks(object):
+
+    @staticmethod
+    def validateSubmit():
+        raise NotImplementedError
+
+    @staticmethod
+    def cleanupCallbacks():
+        raise NotImplementedError
+
+    @staticmethod
+    def initCallbacks():
+        raise NotImplementedError
+
+
 class BaseInterop(object):
+
     @staticmethod
     def main_parent_window():
         raise NotImplementedError
@@ -12,11 +29,11 @@ class BaseInterop(object):
     @staticmethod
     def getIconPath():
         raise NotImplementedError
-    
+
     @staticmethod
     def getSceneFiles():
         return []
-    
+
     @staticmethod
     def getTempPath():
         return tempfile.gettempdir()

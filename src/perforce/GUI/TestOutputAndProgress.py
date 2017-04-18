@@ -1,6 +1,6 @@
 from P4 import P4, P4Exception, Progress, OutputHandler
 
-import Perforce.Utils as Utils
+import perforce.Utils as Utils
 
 class TestOutputAndProgress(Progress, OutputHandler):
 

@@ -5,14 +5,11 @@ import logging
 import platform
 from distutils.version import StrictVersion
 
-from PySide import QtCore
-from PySide import QtGui
-
 from P4 import P4, P4Exception, Progress, OutputHandler
 
-import Perforce.Utils as Utils
-import Perforce.AppUtils as AppUtils
-import Perforce.Callbacks as Callbacks
+import perforce.Utils as Utils
+import perforce.AppUtils as AppUtils
+import perforce.Callbacks as Callbacks
 import PerforceMenu
 
 # try:
