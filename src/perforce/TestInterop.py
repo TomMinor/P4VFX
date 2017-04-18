@@ -2,7 +2,11 @@ from version import __version__
 from BaseInterop import BaseInterop
 
 
-class BaseInterop(object):
+class TestInterop(BaseInterop):
+
+    @staticmethod
+    def setupTestingEnvironment():
+        raise NotImplementedError
 
     @staticmethod
     def main_parent_window():

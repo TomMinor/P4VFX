@@ -98,7 +98,6 @@ class MayaInterop(BaseInterop):
     def setupTestingEnvironment():
         import maya.standalone
         maya.standalone.initialize("Python")
-        print os.environ["MAYA_SCRIPT_PATH"]
 
     @staticmethod
     def main_parent_window():

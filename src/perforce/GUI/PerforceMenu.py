@@ -1,7 +1,7 @@
 import platform
 import traceback
 import os
-import unittest
+import re
 
 from P4 import P4, P4Exception
 
@@ -11,7 +11,7 @@ from PySide import QtGui
 import perforce.Utils as Utils
 from perforce.AppUtils import DCCInterop
 
-class PerforceUI:
+class MainShelf:
 
     def __init__(self, p4):
         self.deleteUI = None
@@ -148,7 +148,7 @@ class PerforceUI:
     def createShot(self, *args):
         shotNameDialog = QtGui.QInputDialog
         shotName = shotNameDialog.getText(
-            mainParent, "Create Shot", "Shot Name:")
+            DCCInterop.main_parent_window(), "Create Shot", "Shot Name:")
 
         if not shotName[1]:
             return
@@ -159,7 +159,7 @@ class PerforceUI:
 
         shotNumDialog = QtGui.QInputDialog
         shotNum = shotNumDialog.getText(
-            mainParent, "Create Shot", "Shot Number:")
+            DCCInterop.main_parent_window(), "Create Shot", "Shot Number:")
 
         if not shotNum[1]:
             return
@@ -183,7 +183,7 @@ class PerforceUI:
     def createAsset(self, *args):
         assetNameDialog = QtGui.QInputDialog
         assetName = assetNameDialog.getText(
-            mainParent, "Create Asset", "Asset Name:")
+            DCCInterop.main_parent_window(), "Create Asset", "Asset Name:")
 
         if not assetName[1]:
             return
@@ -207,7 +207,7 @@ class PerforceUI:
         if enterUsername:
             usernameInputDialog = QtGui.QInputDialog
             username = usernameInputDialog.getText(
-                mainParent, "Enter username", "Username:")
+                DCCInterop.main_parent_window(), "Enter username", "Username:")
 
             if not username[1]:
                 raise ValueError("Invalid username")
@@ -217,7 +217,7 @@ class PerforceUI:
         if enterPassword:
             passwordInputDialog = QtGui.QInputDialog
             password = passwordInputDialog.getText(
-                mainParent, "Enter password", "Password:")
+                DCCInterop.main_parent_window(), "Enter password", "Password:")
 
             if not password[1]:
                 raise ValueError("Invalid password")
@@ -251,7 +251,7 @@ class PerforceUI:
 
     def setCurrentWorkspace(self, *args):
         workspacePath = QtGui.QFileDialog.getExistingDirectory(
-            mainParent, "Select existing workspace")
+            DCCInterop.main_parent_window(), "Select existing workspace")
 
         for client in self.p4.run_clients():
             if workspacePath.replace("\\", "/") == client['Root'].replace("\\", "/"):
@@ -272,7 +272,7 @@ class PerforceUI:
                 break
         else:
             QtGui.QMessageBox.warning(
-                mainParent, "Perforce Error", "{0} is not a workspace root".format(workspacePath))
+                DCCInterop.main_parent_window(), "Perforce Error", "{0} is not a workspace root".format(workspacePath))
 
     def createWorkspace(self, *args):
         workspaceRoot = None
@@ -290,7 +290,7 @@ class PerforceUI:
         try:
             workspaceSuffixDialog = QtGui.QInputDialog
             workspaceSuffix = workspaceSuffixDialog.getText(
-                mainParent, "Workspace", "Optional Name Suffix (e.g. Uni, Home):")
+                DCCInterop.main_parent_window(), "Workspace", "Optional Name Suffix (e.g. Uni, Home):")
 
             Utils.createWorkspace(self.p4, workspaceRoot,
                                   str(workspaceSuffix[0]))
@@ -302,7 +302,7 @@ class PerforceUI:
     # Open up a sandboxed QFileDialog and run a command on all the selected
     # files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(mainParent, title, str(self.p4.cwd))
+        fileDialog = QtGui.QFileDialog(DCCInterop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -341,7 +341,7 @@ class PerforceUI:
     # Open up a sandboxed QFileDialog and run a command on all the selected folders (and log the output)
     # %TODO This should be refactored
     def __processClientDirectory(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(mainParent, title, str(self.p4.cwd))
+        fileDialog = QtGui.QFileDialog(DCCInterop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -383,7 +383,7 @@ class PerforceUI:
                 if len(selected) == 1 and Utils.queryFileExtension(selected[0], sceneFiles):
                     if not AppUtils.getCurrentSceneFile() == selected[0]:
                         result = QtGui.QMessageBox.question(
-                            mainParent, "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+                            DCCInterop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
                         if result == QtGui.QMessageBox.StandardButton.Yes:
                             AppUtils.openScene(selected[0])
 
@@ -504,7 +504,7 @@ class PerforceUI:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(mainParent, "Scene Info", text)
+            QtGui.QMessageBox.information(DCCInterop.main_parent_window(), "Scene Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -514,7 +514,7 @@ class PerforceUI:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(mainParent, "Server Info", text)
+            QtGui.QMessageBox.information(DCCInterop.main_parent_window(), "Server Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 

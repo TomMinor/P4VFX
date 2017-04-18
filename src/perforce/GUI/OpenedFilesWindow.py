@@ -7,7 +7,7 @@ import perforce.Utils as Utils
 
 class OpenedFilesUI(QtGui.QDialog):
 
-    def __init__(self, parent=mainParent):
+    def __init__(self, parent=DCCInterop.main_parent_window()):
         super(OpenedFilesUI, self).__init__(parent)
 
     def create(self, p4, files=[]):

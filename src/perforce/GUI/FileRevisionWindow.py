@@ -20,7 +20,7 @@ def fullPath(idx):
 
 class FileRevisionUI(QtGui.QDialog):
 
-    def __init__(self, parent=mainParent):
+    def __init__(self, parent=DCCInterop.main_parent_window()):
         super(FileRevisionUI, self).__init__(parent)
 
     def create(self, p4, files=[]):
@@ -300,7 +300,7 @@ class FileRevisionUI(QtGui.QDialog):
             currentRevision, rollbackRevision)
         if Utils.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
             QtGui.QMessageBox.information(
-                mainParent, "Success", "Successful {0}".format(desc))
+                DCCInterop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
         self.loadFileLog()
 

@@ -8,7 +8,7 @@ import SubmitProgressWindow as SubmitProgressUI
 
 class SubmitChangeUi(QtGui.QDialog):
 
-    def __init__(self, parent=mainParent):
+    def __init__(self, parent=DCCInterop.main_parent_window()):
         super(SubmitChangeUi, self).__init__(parent)
 
     def create(self, p4, files=[]):
@@ -151,7 +151,7 @@ class SubmitChangeUi(QtGui.QDialog):
     def on_submit(self):
         if not self.validateText():
             QtGui.QMessageBox.warning(
-                mainParent, "Submit Warning", "No valid description entered")
+                DCCInterop.main_parent_window(), "Submit Warning", "No valid description entered")
             return
 
         files = []

@@ -5,10 +5,9 @@ import logging
 
 import perforce.Utils as Utils
 
-# http://stackoverflow.com/questions/25025928/how-can-a-piece-of-python-code-tell-if-its-running-under-unittest
-
 
 def in_unittest():
+    # http://stackoverflow.com/questions/25025928/how-can-a-piece-of-python-code-tell-if-its-running-under-unittest
     current_stack = inspect.stack()
     for stack_frame in current_stack:
         # This element of the stack frame contains

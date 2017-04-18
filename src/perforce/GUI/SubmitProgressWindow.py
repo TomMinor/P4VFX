@@ -7,7 +7,7 @@ import perforce.Utils as Utils
 
 class SubmitProgressUI(QtGui.QDialog):
 
-    def __init__(self, totalFiles, parent=mainParent):
+    def __init__(self, totalFiles, parent=DCCInterop.main_parent_window()):
         super(SubmitProgressUI, self).__init__(parent)
         self.handler = None
 
