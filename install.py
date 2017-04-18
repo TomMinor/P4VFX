@@ -49,6 +49,9 @@ def setEnvironmentVariable(key, value):
             f.write('export %s=%s' % (key,value))
 
 def logSymlink(src, dst):
+    if not os.path.exists(src):
+        raise IOError('%s doesn\'t exist' % src)
+
     if os.path.exists(dst):
         print '%s exists, unlinking...' % dst
         try:
@@ -155,13 +158,26 @@ def install_environment(args):
         # echo "export P4CONFIG=$_P4CONFIGPATH" >> ~/.profile
 
     p4config = os.path.realpath(os.path.expanduser(args.p4config))
+
+    p4configpath, p4configfile = os.path.split(p4config)
+    if not os.path.exists(os.path.dirname(p4configpath)):
+        try:
+            os.makedirs(os.path.dirname(p4configpath))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
     if not os.path.exists(p4config):
-        os.path.makedirs(p4config)
+        open(p4config, 'a').close()
 
     if not os.environ.get('P4CONFIG'):
         setEnvironmentVariable('P4CONFIG', p4config)
 
-    contents = open(p4config).read()
+    try:
+        contents = open(p4config).read()
+    except IOError as e:
+        print e
+        return
 
     with open(p4config, 'w') as f:
         if not 'P4PORT' in contents:
@@ -185,6 +201,9 @@ def install(args):
         maya_plugins, os.path.basename(maya_plugin_src))
     install_p4python(maya_scripts)
     install_perforce_module(maya_scripts)
+
+    if not os.path.exists(maya_plugin_dst):
+        os.makedirs(maya_plugin_dst)
     logSymlink(maya_plugin_src, maya_plugin_dst)
 
     # Setup Nuke
