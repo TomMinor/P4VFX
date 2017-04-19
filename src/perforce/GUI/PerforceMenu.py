@@ -205,24 +205,29 @@ class MainShelf:
         password = None
 
         if enterUsername:
-            usernameInputDialog = QtGui.QInputDialog
-            username = usernameInputDialog.getText(
-                DCCInterop.main_parent_window(), "Enter username", "Username:")
+            username, ok = QtGui.QInputDialog.getText(
+                DCCInterop.main_parent_window(),
+                "Enter username",
+                "Username:",
+                QtGui.QLineEdit.Normal
+                )
 
-            if not username[1]:
+            if not username[1] or not ok:
                 raise ValueError("Invalid username")
 
-            self.p4.user = str(username[0])
+            self.p4.user = str(username)
 
         if enterPassword:
-            passwordInputDialog = QtGui.QInputDialog
-            password = passwordInputDialog.getText(
-                DCCInterop.main_parent_window(), "Enter password", "Password:")
-
-            if not password[1]:
+            password, ok = QtGui.QInputDialog.getText(
+                DCCInterop.main_parent_window(),
+                "Enter password",
+                "Password:",
+                QtGui.QLineEdit.Password)
+            
+            if not password[1] or not ok:
                 raise ValueError("Invalid password")
 
-            self.p4.password = str(password[0])
+            self.p4.password = str(password)
 
         # Validate SSH Login / Attempt to login
         try:

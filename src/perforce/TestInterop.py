@@ -1,16 +1,22 @@
 from version import __version__
 from BaseInterop import BaseInterop
 
+from PySide import QtCore
+from PySide import QtGui
 
 class TestInterop(BaseInterop):
+    window = None
 
     @staticmethod
     def setupTestingEnvironment():
-        pass
+        app = QtGui.QApplication([])
+
+        TestInterop.window = QtGui.QLabel('Test')
+        TestInterop.window.show()
 
     @staticmethod
     def main_parent_window():
-        return None
+        return TestInterop.window
 
     @staticmethod
     def createMenu(entries):
