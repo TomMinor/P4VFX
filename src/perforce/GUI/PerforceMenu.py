@@ -203,6 +203,7 @@ class MainShelf:
         username = None
         password = None
 
+<<<<<<< HEAD
         print DCCInterop.main_parent_window()
 
         if enterUsername:
