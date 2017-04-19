@@ -7,9 +7,8 @@ from distutils.version import StrictVersion
 
 from P4 import P4, P4Exception, Progress, OutputHandler
 
+import perforce.DCCInterop
 import perforce.Utils as Utils
-import perforce.AppUtils as AppUtils
-import perforce.Callbacks as Callbacks
 import PerforceMenu
 
 # try:
@@ -29,10 +28,10 @@ def init():
     if p4.p4config_file == 'noconfig':
         Utils.loadP4Config(p4)
 
-    Callbacks.initCallbacks()
+    # DCCInterop.initCallbacks()
 
     try:
-        ui = PerforceMenu.PerforceUI(p4)
+        ui = PerforceMenu.MainShelf(p4)
 
         ui.addMenu()
     except ValueError as e:
@@ -44,7 +43,7 @@ def init():
 def close():
     global ui
 
-    Callbacks.cleanupCallbacks()
+    # DCCInterop.cleanupCallbacks()
 
     # try:
     #     # cmds.deleteUI(ui.perforceMenu)

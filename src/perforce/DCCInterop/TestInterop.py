@@ -1,17 +1,17 @@
-from version import __version__
+from perforce.version import __version__
+from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
+
 from BaseInterop import BaseInterop
 
-from PySide import QtCore
-from PySide import QtGui
 
 class TestInterop(BaseInterop):
     window = None
 
     @staticmethod
     def setupTestingEnvironment():
-        app = QtGui.QApplication([])
+        app = QtWidgets.QApplication([])
 
-        TestInterop.window = QtGui.QLabel('Test')
+        TestInterop.window = QtWidgets.QLabel('Test')
         TestInterop.window.show()
 
     @staticmethod

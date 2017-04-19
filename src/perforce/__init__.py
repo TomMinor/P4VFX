@@ -8,7 +8,8 @@ except ImportError as e:
 import logging
 logging.basicConfig(level=logging.INFO)
 
-import AppUtils
+import DCCInterop
+reload(DCCInterop)
 
 import GUI
 reload(GUI)

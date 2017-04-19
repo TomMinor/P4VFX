@@ -5,11 +5,12 @@ import re
 
 from P4 import P4, P4Exception
 
-from PySide import QtCore
-from PySide import QtGui
-
 import perforce.Utils as Utils
-from perforce.AppUtils import DCCInterop
+import perforce.DCCInterop
+
+print repr(perforce.DCCInterop.in_unittest)
+
+from Qt import QtCore, QtGui, QtWidgets
 
 class MainShelf:
 
@@ -19,10 +20,7 @@ class MainShelf:
         # self.perforceMenu = ""
 
         self.p4 = p4
-
         self.p4.connect()
-
-        self.p4.password = '***REMOVED***'
 
         try:
             self.firstTimeLogin(enterUsername=self.p4.user is None,
@@ -31,7 +29,8 @@ class MainShelf:
             # If user/pass is set but it fails anyway, try a last ditch attempt
             # to let the user input their stuff
             try:
-                self.firstTimeLogin(enterUsername=True, enterPassword=True)
+                self.firstTimeLogin(enterUsername=self.p4.user is None,
+                                    enterPassword=True)
             except P4Exception as e:
                 raise e
 
@@ -204,27 +203,29 @@ class MainShelf:
         username = None
         password = None
 
+        print DCCInterop.main_parent_window()
+
         if enterUsername:
-            username, ok = QtGui.QInputDialog.getText(
+            username, ok = QtWidgets.QInputDialog.getText(
                 DCCInterop.main_parent_window(),
                 "Enter username",
                 "Username:",
-                QtGui.QLineEdit.Normal
+                QtWidgets.QLineEdit.Normal
                 )
 
-            if not username[1] or not ok:
+            if not username or not ok:
                 raise ValueError("Invalid username")
 
             self.p4.user = str(username)
 
         if enterPassword:
-            password, ok = QtGui.QInputDialog.getText(
+            password, ok = QtWidgets.QInputDialog.getText(
                 DCCInterop.main_parent_window(),
                 "Enter password",
                 "Password:",
-                QtGui.QLineEdit.Password)
-            
-            if not password[1] or not ok:
+                QtWidgets.QLineEdit.Password)
+
+            if not password or not ok:
                 raise ValueError("Invalid password")
 
             self.p4.password = str(password)

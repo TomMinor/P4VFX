@@ -1,7 +1,6 @@
 from P4 import P4, P4Exception
 
-from PySide import QtCore
-from PySide import QtGui
+from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 import SubmitProgressWindow as SubmitProgressUI

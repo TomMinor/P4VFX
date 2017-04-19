@@ -1,5 +1,4 @@
-from PySide import QtCore
-from PySide import QtGui
+from Qt import QtCore, QtGui, QtWidgets
 
 def displayErrorUI(e):
     error_ui = QtGui.QMessageBox()

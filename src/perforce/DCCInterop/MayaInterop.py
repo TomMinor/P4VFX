@@ -2,20 +2,27 @@ import os
 import logging
 import sys
 
+try:
+    import maya.standalone
+    maya.standalone.initialize()
+except:
+    pass
+
 import maya.mel as mel
 # import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
-# from shiboken import wrapInstance
+try:
+    from shiboken import wrapInstance
+except ImportError:
+    from shiboken2 import wrapInstance
+    
 import maya.OpenMaya as api
-
-from PySide import QtCore
-from PySide import QtGui
 
 import GlobalVars
 from version import __version__
 from BaseInterop import BaseInterop, BaseCallbacks
-
+from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 
 class MayaCallbacks(BaseCallbacks):
     contactrootenv = "CONTACTROOT"
@@ -105,18 +112,18 @@ class MayaInterop(BaseInterop):
         Get the main Maya window as a QtGui.QMainWindow instance
         @return: QtGui.QMainWindow instance of the top level Maya windows
         """
-        try:
-            window = mel.eval('$temp1=$gMainWindow')
-            return window
-        except RuntimeError as e:
-            print e
+        # try:
+        #     window = mel.eval('$temp1=$gMainWindow')
+        #     return window
+        # except RuntimeError as e:
+        #     print e
         
-        return None
-        # main_window_ptr = omui.MQtUtil.mainWindow()
-        # if main_window_ptr:
-        #     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
-        # else:
-        #     return None
+        # return None
+        main_window_ptr = omui.MQtUtil.mainWindow()
+        if main_window_ptr:
+            return wrapInstance(long(main_window_ptr), QtWidgets.QWidget)
+        else:
+            return None
 
     @staticmethod
     def createMenu(entries):

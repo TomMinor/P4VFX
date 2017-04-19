@@ -1,6 +1,6 @@
 import unittest
 
-from perforce.AppUtils import DCCInterop
+import perforce.DCCInterop as DCCInterop
 from perforce.GUI import PerforceMenu
 
 from test_perforce import TestingEnvironment

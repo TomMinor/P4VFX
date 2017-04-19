@@ -9,11 +9,16 @@ import sys
 import logging
 import stat
 import fileinput
+import traceback
 
 from P4 import P4, P4Exception
 
 def p4Logger():
     return logging.getLogger("Perforce")
+
+def importClass(modulePath, className):
+    mod = __import__(modulePath, fromlist=[className])
+    return getattr(mod, className)
 
 
 #============================= Filesystem Procedures ===========================
