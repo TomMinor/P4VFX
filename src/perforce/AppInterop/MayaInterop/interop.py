@@ -21,7 +21,7 @@ import maya.OpenMaya as api
 
 import perforce.GlobalVars
 from perforce.version import __version__
-from perforce.DCCInterop.BaseInterop import BaseInterop, BaseCallbacks
+from perforce.AppInterop.BaseInterop import BaseInterop, BaseCallbacks
 from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 
 class MayaCallbacks(BaseCallbacks):

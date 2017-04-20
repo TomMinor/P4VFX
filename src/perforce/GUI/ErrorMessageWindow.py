@@ -1,5 +1,5 @@
 from Qt import QtCore, QtGui, QtWidgets
-from perforce.DCCInterop import interop
+from perforce.AppInterop import interop
 
 def displayErrorUI(e):
     error_ui = QtGui.QMessageBox()

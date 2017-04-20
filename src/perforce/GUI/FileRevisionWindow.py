@@ -4,7 +4,7 @@ from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 import GUI.DepotClientViewModel
-from perforce.DCCInterop import interop
+from perforce.AppInterop import interop
 
 def fullPath(idx):
     result = [idx]

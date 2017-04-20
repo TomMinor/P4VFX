@@ -3,7 +3,7 @@ from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
-from perforce.DCCInterop import interop
+from perforce.AppInterop import interop
 import SubmitProgressWindow as SubmitProgressUI
 
 class SubmitChangeUi(QtGui.QDialog):

@@ -1,6 +1,6 @@
 from perforce.version import __version__
 from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
-from perforce.DCCInterop.BaseInterop import BaseInterop
+from perforce.AppInterop.BaseInterop import BaseInterop
 
 
 from PySide import QtCore

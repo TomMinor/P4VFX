@@ -9,7 +9,7 @@ from P4 import P4, P4Exception, Progress, OutputHandler
 
 import perforce.Utils as Utils
 import PerforceMenu
-from perforce.DCCInterop import interop
+from perforce.AppInterop import interop
 
 # try:
 #     AppUtils.closeWindow(ui.perforceMenu)

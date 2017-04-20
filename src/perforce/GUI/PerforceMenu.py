@@ -6,7 +6,7 @@ import re
 from P4 import P4, P4Exception
 
 import perforce.Utils as Utils
-from perforce.DCCInterop import interop
+from perforce.AppInterop import interop
 
 from Qt import QtCore, QtGui, QtWidgets
 
