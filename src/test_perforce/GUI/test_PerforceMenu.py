@@ -1,13 +1,14 @@
 import unittest
 
-import perforce.DCCInterop as DCCInterop
+from perforce.DCCInterop import interop
 from perforce.GUI import PerforceMenu
 
 from test_perforce import TestingEnvironment
 
 class PerforceUITests(unittest.TestCase):
     def setUp(self):
-        DCCInterop.setupTestingEnvironment()
+    	print repr(interop)
+        interop.setupTestingEnvironment()
         
         self.p4 = TestingEnvironment()        
         self.menu = PerforceMenu.MainShelf(self.p4)

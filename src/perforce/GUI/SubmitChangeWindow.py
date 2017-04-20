@@ -3,11 +3,12 @@ from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
+from perforce.DCCInterop import interop
 import SubmitProgressWindow as SubmitProgressUI
 
 class SubmitChangeUi(QtGui.QDialog):
 
-    def __init__(self, parent=DCCInterop.main_parent_window()):
+    def __init__(self, parent=interop.main_parent_window()):
         super(SubmitChangeUi, self).__init__(parent)
 
     def create(self, p4, files=[]):
@@ -150,7 +151,7 @@ class SubmitChangeUi(QtGui.QDialog):
     def on_submit(self):
         if not self.validateText():
             QtGui.QMessageBox.warning(
-                DCCInterop.main_parent_window(), "Submit Warning", "No valid description entered")
+                interop.main_parent_window(), "Submit Warning", "No valid description entered")
             return
 
         files = []

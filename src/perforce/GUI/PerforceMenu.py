@@ -6,9 +6,7 @@ import re
 from P4 import P4, P4Exception
 
 import perforce.Utils as Utils
-import perforce.DCCInterop
-
-print repr(perforce.DCCInterop.in_unittest)
+from perforce.DCCInterop import interop
 
 from Qt import QtCore, QtGui, QtWidgets
 
@@ -81,12 +79,12 @@ class MainShelf:
 
     def addMenu(self):
         try:
-            DCCInterop.closeWindow(self.perforceMenu)
+            interop.closeWindow(self.perforceMenu)
         except:
             pass
 
         # %TODO Hard coded icons are bad?
-        iconPath = DCCInterop.getIconPath()
+        iconPath = interop.getIconPath()
 
         menuEntries = [
             {'label': "Client Commands",            'divider': True},
@@ -139,7 +137,7 @@ class MainShelf:
             }
         ]
 
-        DCCInterop.createMenu(menuEntries)
+        interop.createMenu(menuEntries)
 
     def changePasswd(self, *args):
         return NotImplementedError("Use p4 passwd")
@@ -147,7 +145,7 @@ class MainShelf:
     def createShot(self, *args):
         shotNameDialog = QtGui.QInputDialog
         shotName = shotNameDialog.getText(
-            DCCInterop.main_parent_window(), "Create Shot", "Shot Name:")
+            interop.main_parent_window(), "Create Shot", "Shot Name:")
 
         if not shotName[1]:
             return
@@ -158,7 +156,7 @@ class MainShelf:
 
         shotNumDialog = QtGui.QInputDialog
         shotNum = shotNumDialog.getText(
-            DCCInterop.main_parent_window(), "Create Shot", "Shot Number:")
+            interop.main_parent_window(), "Create Shot", "Shot Number:")
 
         if not shotNum[1]:
             return
@@ -182,7 +180,7 @@ class MainShelf:
     def createAsset(self, *args):
         assetNameDialog = QtGui.QInputDialog
         assetName = assetNameDialog.getText(
-            DCCInterop.main_parent_window(), "Create Asset", "Asset Name:")
+            interop.main_parent_window(), "Create Asset", "Asset Name:")
 
         if not assetName[1]:
             return
@@ -203,12 +201,11 @@ class MainShelf:
         username = None
         password = None
 
-<<<<<<< HEAD
-        print DCCInterop.main_parent_window()
+        print interop.main_parent_window()
 
         if enterUsername:
             username, ok = QtWidgets.QInputDialog.getText(
-                DCCInterop.main_parent_window(),
+                interop.main_parent_window(),
                 "Enter username",
                 "Username:",
                 QtWidgets.QLineEdit.Normal
@@ -221,7 +218,7 @@ class MainShelf:
 
         if enterPassword:
             password, ok = QtWidgets.QInputDialog.getText(
-                DCCInterop.main_parent_window(),
+                interop.main_parent_window(),
                 "Enter password",
                 "Password:",
                 QtWidgets.QLineEdit.Password)
@@ -258,7 +255,7 @@ class MainShelf:
 
     def setCurrentWorkspace(self, *args):
         workspacePath = QtGui.QFileDialog.getExistingDirectory(
-            DCCInterop.main_parent_window(), "Select existing workspace")
+            interop.main_parent_window(), "Select existing workspace")
 
         for client in self.p4.run_clients():
             if workspacePath.replace("\\", "/") == client['Root'].replace("\\", "/"):
@@ -279,7 +276,7 @@ class MainShelf:
                 break
         else:
             QtGui.QMessageBox.warning(
-                DCCInterop.main_parent_window(), "Perforce Error", "{0} is not a workspace root".format(workspacePath))
+                interop.main_parent_window(), "Perforce Error", "{0} is not a workspace root".format(workspacePath))
 
     def createWorkspace(self, *args):
         workspaceRoot = None
@@ -297,7 +294,7 @@ class MainShelf:
         try:
             workspaceSuffixDialog = QtGui.QInputDialog
             workspaceSuffix = workspaceSuffixDialog.getText(
-                DCCInterop.main_parent_window(), "Workspace", "Optional Name Suffix (e.g. Uni, Home):")
+                interop.main_parent_window(), "Workspace", "Optional Name Suffix (e.g. Uni, Home):")
 
             Utils.createWorkspace(self.p4, workspaceRoot,
                                   str(workspaceSuffix[0]))
@@ -309,7 +306,7 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected
     # files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(DCCInterop.main_parent_window(), title, str(self.p4.cwd))
+        fileDialog = QtGui.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -348,7 +345,7 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected folders (and log the output)
     # %TODO This should be refactored
     def __processClientDirectory(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(DCCInterop.main_parent_window(), title, str(self.p4.cwd))
+        fileDialog = QtGui.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -390,7 +387,7 @@ class MainShelf:
                 if len(selected) == 1 and Utils.queryFileExtension(selected[0], sceneFiles):
                     if not AppUtils.getCurrentSceneFile() == selected[0]:
                         result = QtGui.QMessageBox.question(
-                            DCCInterop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+                            interop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
                         if result == QtGui.QMessageBox.StandardButton.Yes:
                             AppUtils.openScene(selected[0])
 
@@ -511,7 +508,7 @@ class MainShelf:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(DCCInterop.main_parent_window(), "Scene Info", text)
+            QtGui.QMessageBox.information(interop.main_parent_window(), "Scene Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -521,7 +518,7 @@ class MainShelf:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(DCCInterop.main_parent_window(), "Server Info", text)
+            QtGui.QMessageBox.information(interop.main_parent_window(), "Server Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 

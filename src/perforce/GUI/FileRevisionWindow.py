@@ -4,6 +4,7 @@ from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 import GUI.DepotClientViewModel
+from perforce.DCCInterop import interop
 
 def fullPath(idx):
     result = [idx]
@@ -19,7 +20,7 @@ def fullPath(idx):
 
 class FileRevisionUI(QtGui.QDialog):
 
-    def __init__(self, parent=DCCInterop.main_parent_window()):
+    def __init__(self, parent=interop.main_parent_window()):
         super(FileRevisionUI, self).__init__(parent)
 
     def create(self, p4, files=[]):
@@ -299,7 +300,7 @@ class FileRevisionUI(QtGui.QDialog):
             currentRevision, rollbackRevision)
         if Utils.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
             QtGui.QMessageBox.information(
-                DCCInterop.main_parent_window(), "Success", "Successful {0}".format(desc))
+                interop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
         self.loadFileLog()
 

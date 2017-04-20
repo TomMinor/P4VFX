@@ -1,15 +1,11 @@
 try:
 	from P4 import P4, P4Exception
 except ImportError as e:
-	print e
-	print 'Ensure P4API is installed into your DCC script paths'
-	raise e
+	raise ImportError('%s, ensure P4API is installed into your DCC script paths' % e)
 
 import logging
 logging.basicConfig(level=logging.INFO)
-
-import DCCInterop
-reload(DCCInterop)
+logging.basicConfig(level=logging.DEBUG)
 
 import GUI
 reload(GUI)

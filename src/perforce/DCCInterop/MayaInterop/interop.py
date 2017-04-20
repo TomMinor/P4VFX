@@ -19,9 +19,9 @@ except ImportError:
     
 import maya.OpenMaya as api
 
-import GlobalVars
-from version import __version__
-from BaseInterop import BaseInterop, BaseCallbacks
+import perforce.GlobalVars
+from perforce.version import __version__
+from perforce.DCCInterop.BaseInterop import BaseInterop, BaseCallbacks
 from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 
 class MayaCallbacks(BaseCallbacks):

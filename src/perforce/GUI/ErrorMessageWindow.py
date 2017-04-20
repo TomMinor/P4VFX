@@ -1,4 +1,5 @@
 from Qt import QtCore, QtGui, QtWidgets
+from perforce.DCCInterop import interop
 
 def displayErrorUI(e):
     error_ui = QtGui.QMessageBox()
@@ -7,10 +8,10 @@ def displayErrorUI(e):
     eMsg, type = Utils.parsePerforceError(e)
 
     if type == "warning":
-        error_ui.warning(DCCInterop.main_parent_window(), "Perforce Warning", eMsg)
+        error_ui.warning(interop.main_parent_window(), "Perforce Warning", eMsg)
     elif type == "error":
-        error_ui.critical(DCCInterop.main_parent_window(), "Perforce Error", eMsg)
+        error_ui.critical(interop.main_parent_window(), "Perforce Error", eMsg)
     else:
-        error_ui.information(DCCInterop.main_parent_window(), "Perforce Error", eMsg)
+        error_ui.information(interop.main_parent_window(), "Perforce Error", eMsg)
 
     error_ui.deleteLater()

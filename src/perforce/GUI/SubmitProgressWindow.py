@@ -3,10 +3,11 @@ from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
+from perforce.DCCInterop import interop
 
 class SubmitProgressUI(QtGui.QDialog):
 
-    def __init__(self, totalFiles, parent=DCCInterop.main_parent_window()):
+    def __init__(self, totalFiles, parent=interop.main_parent_window()):
         super(SubmitProgressUI, self).__init__(parent)
         self.handler = None
 

@@ -3,10 +3,11 @@ from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
+from perforce.DCCInterop import interop
 
 class OpenedFilesUI(QtGui.QDialog):
 
-    def __init__(self, parent=DCCInterop.main_parent_window()):
+    def __init__(self, parent=interop.main_parent_window()):
         super(OpenedFilesUI, self).__init__(parent)
 
     def create(self, p4, files=[]):
