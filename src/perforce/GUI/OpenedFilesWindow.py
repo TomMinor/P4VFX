@@ -1,11 +1,12 @@
-from P4 import P4, P4Exception
+import os
 
+from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 from perforce.AppInterop import interop
 
-class OpenedFilesUI(QtGui.QDialog):
+class OpenedFilesUI(QtWidgets.QDialog):
 
     def __init__(self, parent=interop.main_parent_window()):
         super(OpenedFilesUI, self).__init__(parent)
@@ -13,7 +14,7 @@ class OpenedFilesUI(QtGui.QDialog):
     def create(self, p4, files=[]):
         self.p4 = p4
 
-        path = iconPath + P4Icon.iconName
+        path = interop.getIconPath()
         icon = QtGui.QIcon(path)
 
         self.setWindowTitle("Changelist : Opened Files")
@@ -32,28 +33,29 @@ class OpenedFilesUI(QtGui.QDialog):
         '''
         headers = ["File", "Type", "Action", "User", "Folder"]
 
-        self.tableWidget = QtGui.QTableWidget(0, len(headers))
+        self.tableWidget = QtWidgets.QTableWidget(0, len(headers))
         self.tableWidget.setMaximumHeight(200)
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels(headers)
         self.tableWidget.setSelectionBehavior(
-            QtGui.QAbstractItemView.SelectRows)
+            QtWidgets.QAbstractItemView.SelectRows)
         self.tableWidget.setSelectionMode(
-            QtGui.QAbstractItemView.SingleSelection)
+            QtWidgets.QAbstractItemView.SingleSelection)
 
-        self.openSelectedBtn = QtGui.QPushButton("Open")
+
+        self.openSelectedBtn = QtWidgets.QPushButton("Open")
         self.openSelectedBtn.setEnabled(False)
         self.openSelectedBtn.setIcon(QtGui.QIcon(
-            os.path.join(iconPath, "File0228.png")))
+            os.path.join(interop.getIconPath(), "File0228.png")))
 
-        self.revertFileBtn = QtGui.QPushButton("Remove from changelist")
+        self.revertFileBtn = QtWidgets.QPushButton("Remove from changelist")
         self.revertFileBtn.setEnabled(False)
         self.revertFileBtn.setIcon(QtGui.QIcon(
-            os.path.join(iconPath, "File0308.png")))
+            os.path.join(interop.getIconPath(), "File0308.png")))
 
-        self.refreshBtn = QtGui.QPushButton("Refresh")
+        self.refreshBtn = QtWidgets.QPushButton("Refresh")
         self.refreshBtn.setIcon(QtGui.QIcon(
-            os.path.join(iconPath, "File0175.png")))
+            os.path.join(interop.getIconPath(), "File0175.png")))
 
         self.updateTable()
 
@@ -61,18 +63,18 @@ class OpenedFilesUI(QtGui.QDialog):
         '''
         Create the layouts and add widgets
         '''
-        check_box_layout = QtGui.QHBoxLayout()
+        check_box_layout = QtWidgets.QHBoxLayout()
         check_box_layout.setContentsMargins(2, 2, 2, 2)
 
-        main_layout = QtGui.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(6, 6, 6, 6)
 
         main_layout.addWidget(self.tableWidget)
 
-        bottomLayout = QtGui.QHBoxLayout()
+        bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addWidget(self.revertFileBtn)
         bottomLayout.addWidget(self.refreshBtn)
-        bottomLayout.addSpacerItem(QtGui.QSpacerItem(400, 16))
+        bottomLayout.addSpacerItem(QtWidgets.QSpacerItem(400, 16))
         bottomLayout.addWidget(self.openSelectedBtn)
 
         main_layout.addLayout(bottomLayout)
@@ -131,7 +133,7 @@ class OpenedFilesUI(QtGui.QDialog):
             clientFile = result['clientFile']
 
             if Utils.queryFileExtension(depotFile, ['.ma', '.mb']):
-                AppUtils.openScene(clientFile)
+                interop.openScene(clientFile)
             else:
                 Utils.open_file(clientFile)
         except P4Exception as e:
@@ -166,14 +168,14 @@ class OpenedFilesUI(QtGui.QDialog):
             # Fill in the rest of the data
             # File
             fileName = file['File']
-            newItem = QtGui.QTableWidgetItem(os.path.basename(fileName))
+            newItem = QtWidgets.QTableWidgetItem(os.path.basename(fileName))
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
 
             # Text
             fileType = file['Type']
-            newItem = QtGui.QTableWidgetItem(fileType.capitalize())
+            newItem = QtWidgets.QTableWidgetItem(fileType.capitalize())
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
@@ -183,22 +185,22 @@ class OpenedFilesUI(QtGui.QDialog):
 
             path = ""
             if(pendingAction == "edit"):
-                path = os.path.join(iconPath, P4Icon.editFile)
+                path = os.path.join(interop.getIconPath(), "File0440.png")
             elif(pendingAction == "add"):
-                path = os.path.join(iconPath, P4Icon.addFile)
+                path = os.path.join(interop.getIconPath(), "File0242.png")
             elif(pendingAction == "delete"):
-                path = os.path.join(iconPath, P4Icon.deleteFile)
+                path = os.path.join(interop.getIconPath(), "File0253.png")
 
-            widget = QtGui.QWidget()
+            widget = QtWidgets.QWidget()
 
             icon = QtGui.QPixmap(path)
             icon = icon.scaled(16, 16)
 
-            iconLabel = QtGui.QLabel()
+            iconLabel = QtWidgets.QLabel()
             iconLabel.setPixmap(icon)
-            textLabel = QtGui.QLabel(pendingAction.capitalize())
+            textLabel = QtWidgets.QLabel(pendingAction.capitalize())
 
-            layout = QtGui.QHBoxLayout()
+            layout = QtWidgets.QHBoxLayout()
             layout.addWidget(iconLabel)
             layout.addWidget(textLabel)
             layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -210,13 +212,13 @@ class OpenedFilesUI(QtGui.QDialog):
 
             # User
             fileType = file['User']
-            newItem = QtGui.QTableWidgetItem(fileType)
+            newItem = QtWidgets.QTableWidgetItem(fileType)
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
 
             # Folder
-            newItem = QtGui.QTableWidgetItem(file['Folder'])
+            newItem = QtWidgets.QTableWidgetItem(file['Folder'])
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1

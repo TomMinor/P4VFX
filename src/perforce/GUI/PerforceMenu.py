@@ -8,6 +8,12 @@ from P4 import P4, P4Exception
 import perforce.Utils as Utils
 from perforce.AppInterop import interop
 
+from LoginWindow import firstTimeLogin
+from ErrorMessageWindow import displayErrorUI
+import OpenedFilesWindow
+import SubmitChangeWindow
+import FileRevisionWindow
+
 from Qt import QtCore, QtGui, QtWidgets
 
 class MainShelf:
@@ -18,32 +24,21 @@ class MainShelf:
         # self.perforceMenu = ""
 
         self.p4 = p4
-        self.p4.connect()
 
-        try:
-            self.firstTimeLogin(enterUsername=self.p4.user is None,
-                                enterPassword=self.p4.password is None)
-        except P4Exception as e:
-            # If user/pass is set but it fails anyway, try a last ditch attempt
-            # to let the user input their stuff
-            try:
-                self.firstTimeLogin(enterUsername=self.p4.user is None,
-                                    enterPassword=True)
-            except P4Exception as e:
-                raise e
-
+        # @ToDo move this somewhere more logical
         # Validate workspace
-        try:
-            self.p4.cwd = self.p4.run_info()[0]['clientRoot']
-        except P4Exception as e:
-            displayErrorUI(e)
-        except KeyError as e:
-            print "No workspace found, creating default one"
-            try:
-                self.createWorkspace()
-            except P4Exception as e:
-                Utils.p4Logger().warning(e)
+        # try:
+        #     p4.cwd = p4.run_info()[0]['clientRoot']
+        # except P4Exception as e:
+        #     displayErrorUI(e)
+        # except KeyError as e:
+        #     print "No workspace found, creating default one"
+        #     try:
+        #         self.createWorkspace()
+        #     except P4Exception as e:
+        #         Utils.p4Logger().warning(e)
 
+        # @ToDo this shouldn't be in the GUI code
         self.p4.cwd = self.p4.fetch_client()['Root']
 
     def close(self):
@@ -60,7 +55,7 @@ class MainShelf:
         # try:
         #     # Deleting maya menus is bad, but this is a dumb way of error checking
         #     if "PerforceMenu" in self.perforceMenu:
-        #         AppUtils.closeWindow(self.perforceMenu)
+        #         interop.closeWindow(self.perforceMenu)
         #     else:
         #         raise RuntimeError("Menu name doesn't seem to belong to Perforce, not deleting")
         # except Exception  as e:
@@ -84,66 +79,52 @@ class MainShelf:
             pass
 
         # %TODO Hard coded icons are bad?
-        iconPath = interop.getIconPath()
 
         menuEntries = [
             {'label': "Client Commands",            'divider': True},
-            {'label': "Checkout File(s)",           'image': os.path.join(
-                iconPath, "File0078.png"), 'command': self.checkoutFile},
-            {'label': "Checkout Folder",            'image': os.path.join(
-                iconPath, "File0186.png"), 'command': self.checkoutFolder},
-            {'label': "Mark for Delete",            'image': os.path.join(
-                iconPath, "File0253.png"), 'command': self.deleteFile},
-            {'label': "Show Changelist",            'image': os.path.join(
-                iconPath, "File0252.png"), 'command': self.queryOpened},
+            {'label': "Checkout File(s)",           'image': os.path.join(interop.getIconPath(), "File0078.png"), 'command': self.checkoutFile},
+            {'label': "Checkout Folder",            'image': os.path.join(interop.getIconPath(), "File0186.png"), 'command': self.checkoutFolder},
+            {'label': "Mark for Delete",            'image': os.path.join(interop.getIconPath(), "File0253.png"), 'command': self.deleteFile},
+            {'label': "Show Changelist",            'image': os.path.join(interop.getIconPath(), "File0252.png"), 'command': self.queryOpened},
             {'label': "Depot Commands",             'divider': True},
-            {'label': "Submit Change",              'image': os.path.join(
-                iconPath, "File0107.png"), 'command': self.submitChange},
-            {'label': "Sync All",                   'image': os.path.join(
-                iconPath, "File0175.png"), 'command': self.syncAllChanged},
-            {'label': "Sync All - Force",
-                'image': os.path.join(iconPath, "File0175.png"), 'command': self.syncAll},
-            # {'label': "Sync All References",        'image': os.path.join(iconPath, "File0320.png"), 'command': self.syncAllChanged},
-            #{'label': "Get Latest Scene",          'image': os.path.join(iconPath, "File0275.png"), command = self.syncFile},
-            {'label': "Show Depot History",         'image': os.path.join(
-                iconPath, "File0279.png"), 'command': self.fileRevisions},
+            {'label': "Submit Change",              'image': os.path.join(interop.getIconPath(), "File0107.png"), 'command': self.submitChange},
+            {'label': "Sync All",                   'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': self.syncAllChanged},
+            {'label': "Sync All - Force",           'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': self.syncAll},
+            # {'label': "Sync All References",        'image': os.path.join(interop.getIconPath(), "File0320.png"), 'command': self.syncAllChanged},
+            #{'label': "Get Latest Scene",          'image': os.path.join(interop.getIconPath(), "File0275.png"), command = self.syncFile},
+            {'label': "Show Depot History",         'image': os.path.join(interop.getIconPath(), "File0279.png"), 'command': self.fileRevisions},
 
             {'label': "Scene",                      'divider': True},
-            {'label': "File Status",                'image': os.path.join(
-                iconPath, "File0409.png"), 'command': self.querySceneStatus},
+            {'label': "File Status",                'image': os.path.join(interop.getIconPath(), "File0409.png"), 'command': self.querySceneStatus},
 
             {'label': "Utility",                    'divider': True},
-            {'label': "Create Asset",               'image': os.path.join(
-                iconPath, "File0352.png"), 'command': self.createAsset},
-            {'label': "Create Shot",                'image': os.path.join(
-                iconPath, "File0104.png"), 'command': self.createShot},
+            {'label': "Create Asset",               'image': os.path.join(interop.getIconPath(), "File0352.png"), 'command': self.createAsset},
+            {'label': "Create Shot",                'image': os.path.join(interop.getIconPath(), "File0104.png"), 'command': self.createShot},
             # Submenu
             {
-                'label': "Miscellaneous",           'image': os.path.join(iconPath, "File0411.png"), 'entries': [
+                'label': "Miscellaneous",           'image': os.path.join(interop.getIconPath(), "File0411.png"), 'entries': [
                     {'label': "Server",                     'divider': True},
-                    {'label': "Login as user",              'image': os.path.join(
-                        iconPath, "File0077.png"),    'command': self.loginAsUser},
-                    {'label': "Server Info",                'image': os.path.join(
-                        iconPath, "File0031.png"),    'command': self.queryServerStatus},
+                    {'label': "Login as user",              'image': os.path.join(interop.getIconPath(), "File0077.png"),    'command': self.loginAsUser},
+                    {'label': "Server Info",                'image': os.path.join(interop.getIconPath(), "File0031.png"),    'command': self.queryServerStatus},
                     {'label': "Workspace",                  'divider': True},
-                    {'label': "Create Workspace",           'image': os.path.join(
-                        iconPath, "File0238.png"),    'command': self.createWorkspace},
-                    {'label': "Set Current Workspace",      'image': os.path.join(
-                        iconPath, "File0044.png"),    'command': self.setCurrentWorkspace},
+                    {'label': "Create Workspace",           'image': os.path.join(interop.getIconPath(), "File0238.png"),    'command': self.createWorkspace},
+                    {'label': "Set Current Workspace",      'image': os.path.join(interop.getIconPath(), "File0044.png"),    'command': self.setCurrentWorkspace},
                     {'label': "Debug",                      'divider': True},
-                    {'label': "Delete all pending changes", 'image': os.path.join(
-                        iconPath, "File0280.png"),    'command': self.deletePending}
+                    {'label': "Delete all pending changes", 'image': os.path.join(interop.getIconPath(), "File0280.png"),    'command': self.deletePending}
                 ]
             }
         ]
 
-        interop.createMenu(menuEntries)
+        self.menu = interop.createMenu(menuEntries)
+
+    def removeMenu(self):
+        interop.removeMenu(self.menu)
 
     def changePasswd(self, *args):
         return NotImplementedError("Use p4 passwd")
 
     def createShot(self, *args):
-        shotNameDialog = QtGui.QInputDialog
+        shotNameDialog = QtWidgets.QInputDialog
         shotName = shotNameDialog.getText(
             interop.main_parent_window(), "Create Shot", "Shot Name:")
 
@@ -154,7 +135,7 @@ class MainShelf:
             Utils.p4Logger().warning("Empty shot name")
             return
 
-        shotNumDialog = QtGui.QInputDialog
+        shotNumDialog = QtWidgets.QInputDialog
         shotNum = shotNumDialog.getText(
             interop.main_parent_window(), "Create Shot", "Shot Number:")
 
@@ -178,7 +159,7 @@ class MainShelf:
         self.run_checkoutFolder(None, dir)
 
     def createAsset(self, *args):
-        assetNameDialog = QtGui.QInputDialog
+        assetNameDialog = QtWidgets.QInputDialog
         assetName = assetNameDialog.getText(
             interop.main_parent_window(), "Create Asset", "Asset Name:")
 
@@ -195,66 +176,10 @@ class MainShelf:
         self.run_checkoutFolder(None, dir)
 
     def loginAsUser(self, *args):
-        self.firstTimeLogin(enterUsername=True, enterPassword=True)
-
-    def firstTimeLogin(self, enterUsername=True, enterPassword=True, *args):
-        username = None
-        password = None
-
-        print interop.main_parent_window()
-
-        if enterUsername:
-            username, ok = QtWidgets.QInputDialog.getText(
-                interop.main_parent_window(),
-                "Enter username",
-                "Username:",
-                QtWidgets.QLineEdit.Normal
-                )
-
-            if not username or not ok:
-                raise ValueError("Invalid username")
-
-            self.p4.user = str(username)
-
-        if enterPassword:
-            password, ok = QtWidgets.QInputDialog.getText(
-                interop.main_parent_window(),
-                "Enter password",
-                "Password:",
-                QtWidgets.QLineEdit.Password)
-
-            if not password or not ok:
-                raise ValueError("Invalid password")
-
-            self.p4.password = str(password)
-
-        # Validate SSH Login / Attempt to login
-        try:
-            Utils.p4Logger().info(self.p4.run_login("-a"))
-        except P4Exception as e:
-            regexKey = re.compile(ur'(?:[0-9a-fA-F]:?){40}')
-            # regexIP = re.compile(ur'[0-9]+(?:\.[0-9]+){3}?:[0-9]{4}')
-            errorMsg = str(e).replace('\\n', ' ')
-
-            key = re.findall(regexKey, errorMsg)
-            # ip = re.findall(regexIP, errorMsg)
-
-            if key:
-                Utils.p4Logger().info(self.p4.run_trust("-i", key[0]))
-                Utils.p4Logger().info(self.p4.run_login("-a"))
-            else:
-                raise e
-
-        if username:
-            Utils.writeToP4Config(self.p4.p4config_file,
-                                  "P4USER", str(username[0]))
-
-        # if password:
-        #     Utils.writeToP4Config(self.p4.p4config_file,
-        #                           "P4PASSWD", str(password[0]))
+        LoginWindow.firstTimeLogin(enterUsername=True, enterPassword=True)
 
     def setCurrentWorkspace(self, *args):
-        workspacePath = QtGui.QFileDialog.getExistingDirectory(
+        workspacePath = QtWidgets.QFileDialog.getExistingDirectory(
             interop.main_parent_window(), "Select existing workspace")
 
         for client in self.p4.run_clients():
@@ -275,7 +200,7 @@ class MainShelf:
                     self.p4.p4config_file, "P4CLIENT", self.p4.client)
                 break
         else:
-            QtGui.QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 interop.main_parent_window(), "Perforce Error", "{0} is not a workspace root".format(workspacePath))
 
     def createWorkspace(self, *args):
@@ -283,8 +208,8 @@ class MainShelf:
 
         i = 0
         while i < 3:
-            workspaceRoot = QtGui.QFileDialog.getExistingDirectory(
-                AppUtils.main_parent_window(), "Specify workspace root folder")
+            workspaceRoot = QtWidgets.QFileDialog.getExistingDirectory(
+                interop.main_parent_window(), "Specify workspace root folder")
             i += 1
             if workspaceRoot:
                 break
@@ -292,7 +217,7 @@ class MainShelf:
             raise IOError("Can't set workspace")
 
         try:
-            workspaceSuffixDialog = QtGui.QInputDialog
+            workspaceSuffixDialog = QtWidgets.QInputDialog
             workspaceSuffix = workspaceSuffixDialog.getText(
                 interop.main_parent_window(), "Workspace", "Optional Name Suffix (e.g. Uni, Home):")
 
@@ -306,7 +231,7 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected
     # files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
+        fileDialog = QtWidgets.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -337,7 +262,7 @@ class MainShelf:
             if finishCallback:
                 finishCallback(selectedFiles, error)
 
-        fileDialog.setFileMode(QtGui.QFileDialog.ExistingFiles)
+        fileDialog.setFileMode(QtWidgets.QFileDialog.ExistingFiles)
         fileDialog.directoryEntered.connect(onEnter)
         fileDialog.finished.connect(onComplete)
         fileDialog.show()
@@ -345,7 +270,7 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected folders (and log the output)
     # %TODO This should be refactored
     def __processClientDirectory(self, title, finishCallback, preCallback, p4command, *p4args):
-        fileDialog = QtGui.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
+        fileDialog = QtWidgets.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
             if not Utils.isPathInClientRoot(self.p4, args[0]):
@@ -376,7 +301,7 @@ class MainShelf:
             if finishCallback:
                 finishCallback(selectedFiles, error)
 
-        fileDialog.setFileMode(QtGui.QFileDialog.DirectoryOnly)
+        fileDialog.setFileMode(QtWidgets.QFileDialog.DirectoryOnly)
         fileDialog.directoryEntered.connect(onEnter)
         fileDialog.finished.connect(onComplete)
         fileDialog.show()
@@ -385,11 +310,11 @@ class MainShelf:
         def openFirstFile(selected, error):
             if not error:
                 if len(selected) == 1 and Utils.queryFileExtension(selected[0], sceneFiles):
-                    if not AppUtils.getCurrentSceneFile() == selected[0]:
-                        result = QtGui.QMessageBox.question(
-                            interop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
-                        if result == QtGui.QMessageBox.StandardButton.Yes:
-                            AppUtils.openScene(selected[0])
+                    if not interop.getCurrentSceneFile() == selected[0]:
+                        result = QtWidgets.QMessageBox.question(
+                            interop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+                        if result == QtWidgets.QMessageBox.StandardButton.Yes:
+                            interop.openScene(selected[0])
 
         self.__processClientFile(
             "Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
@@ -451,7 +376,7 @@ class MainShelf:
         raise NotImplementedError(
             "Scene lock not implemented (use regular lock)")
 
-        # file = AppUtils.getCurrentSceneFile()
+        # file = interop.getCurrentSceneFile()
 
         # if not file:
         #     Utils.p4Logger().warning("Current scene has no name")
@@ -475,7 +400,7 @@ class MainShelf:
         raise NotImplementedError(
             "Scene unlock not implemented (use regular unlock)")
 
-        # file = AppUtils.getCurrentSceneFile()
+        # file = interop.getCurrentSceneFile()
 
         # if not file:
         #     Utils.p4Logger().warning("Current scene has no name")
@@ -499,7 +424,7 @@ class MainShelf:
 
     def querySceneStatus(self, *args):
         try:
-            scene = AppUtils.getCurrentSceneFile()
+            scene = interop.getCurrentSceneFile()
             if not scene:
                 Utils.p4Logger().warning("Current scene file isn't saved.")
                 return
@@ -508,7 +433,7 @@ class MainShelf:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(interop.main_parent_window(), "Scene Info", text)
+            QtWidgets.QMessageBox.information(interop.main_parent_window(), "Scene Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -518,7 +443,7 @@ class MainShelf:
             text = ""
             for x in result:
                 text += ("{0} : {1}\n".format(x, result[x]))
-            QtGui.QMessageBox.information(interop.main_parent_window(), "Server Info", text)
+            QtWidgets.QMessageBox.information(interop.main_parent_window(), "Server Info", text)
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -528,7 +453,7 @@ class MainShelf:
         except:
             pass
 
-        self.revisionUi = FileRevisionUI()
+        self.revisionUi = FileRevisionWindow.FileRevisionUI()
 
         # Delete the UI if errors occur to avoid causing winEvent and event
         # errors (in Maya 2014)
@@ -545,7 +470,7 @@ class MainShelf:
         except:
             pass
 
-        self.openedUi = OpenedFilesUI()
+        self.openedUi = OpenedFilesWindow.OpenedFilesUI()
 
         # Delete the UI if errors occur to avoid causing winEvent and event
         # errors (in Maya 2014)
@@ -562,7 +487,7 @@ class MainShelf:
         except:
             pass
 
-        self.submitUI = SubmitChangeUi()
+        self.submitUI = SubmitChangeWindow.SubmitChangeUi()
 
         # Delete the UI if errors occur to avoid causing winEvent
         # and event errors (in Maya 2014)
@@ -570,7 +495,7 @@ class MainShelf:
             files = self.p4.run_opened(
                 "-u", self.p4.user, "-C", self.p4.client, "...")
 
-            AppUtils.refresh()
+            interop.refresh()
 
             entries = []
             for file in files:
@@ -594,9 +519,9 @@ class MainShelf:
 
     def syncFile(self, *args):
         try:
-            self.p4.run_sync("-f", AppUtils.getCurrentSceneFile())
+            self.p4.run_sync("-f", interop.getCurrentSceneFile())
             Utils.p4Logger().info("Got latest revision for {0}".format(
-                AppUtils.getCurrentSceneFile()))
+                interop.getCurrentSceneFile()))
         except P4Exception as e:
             displayErrorUI(e)
 

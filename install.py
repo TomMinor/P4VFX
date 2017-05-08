@@ -196,7 +196,7 @@ def install(args):
     maya_scripts = os.path.join(getMayaPreferences(), 'scripts')
     maya_plugins = os.path.join(getMayaPreferences(), 'plug-ins')
     maya_plugin_src = os.path.realpath(
-        os.path.join(cwd, 'src/DCCPlugins/P4Maya.py'))
+        os.path.join(cwd, 'src/AppPlugins/P4Maya.py'))
     maya_plugin_dst = os.path.join(
         maya_plugins, os.path.basename(maya_plugin_src))
     install_p4python(maya_scripts)

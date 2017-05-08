@@ -31,7 +31,7 @@ class TestOutputAndProgress(Progress, OutputHandler):
             return OutputHandler.HANDLED
 
     def outputInfo(self, info):
-        AppUtils.refresh()
+        interop.refresh()
         print "INFO :", info
         if self.shouldCancel:
             return OutputHandler.REPORT | OutputHandler.CANCEL
@@ -39,7 +39,7 @@ class TestOutputAndProgress(Progress, OutputHandler):
             return OutputHandler.HANDLED
 
     def outputMessage(self, msg):
-        AppUtils.refresh()
+        interop.refresh()
         print "Msg :", msg
 
         if self.shouldCancel:
@@ -48,29 +48,29 @@ class TestOutputAndProgress(Progress, OutputHandler):
             return OutputHandler.HANDLED
 
     def init(self, type):
-        AppUtils.refresh()
+        interop.refresh()
         print "Begin :", type
         self.type = type
         self.ui.incrementCurrent()
 
     def setDescription(self, description, unit):
-        AppUtils.refresh()
+        interop.refresh()
         print "Desc :", description, unit
         pass
 
     def setTotal(self, total):
-        AppUtils.refresh()
+        interop.refresh()
         print "Total :", total
         self.ui.setMaximum(total)
         pass
 
     def update(self, position):
-        AppUtils.refresh()
+        interop.refresh()
         print "Update : ", position
         self.ui.setValue(position)
         self.position = position
 
     def done(self, fail):
-        AppUtils.refresh()
+        interop.refresh()
         print "Failed :", fail
         self.fail = fail

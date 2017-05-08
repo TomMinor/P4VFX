@@ -1,12 +1,13 @@
-from P4 import P4, P4Exception
+import os
 
+from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 from perforce.AppInterop import interop
 import SubmitProgressWindow as SubmitProgressUI
 
-class SubmitChangeUi(QtGui.QDialog):
+class SubmitChangeUi(QtWidgets.QDialog):
 
     def __init__(self, parent=interop.main_parent_window()):
         super(SubmitChangeUi, self).__init__(parent)
@@ -14,7 +15,7 @@ class SubmitChangeUi(QtGui.QDialog):
     def create(self, p4, files=[]):
         self.p4 = p4
 
-        path = iconPath + P4Icon.iconName
+        path = interop.getIconPath() + "p4.png"
         icon = QtGui.QIcon(path)
 
         self.setWindowTitle("Submit Change")
@@ -33,14 +34,14 @@ class SubmitChangeUi(QtGui.QDialog):
         '''
         Create the widgets for the dialog
         '''
-        self.submitBtn = QtGui.QPushButton("Submit")
-        self.descriptionWidget = QtGui.QPlainTextEdit("<Enter Description>")
-        self.descriptionLabel = QtGui.QLabel("Change Description:")
-        self.chkboxLockedWidget = QtGui.QCheckBox("Keep files checked out?")
+        self.submitBtn = QtWidgets.QPushButton("Submit")
+        self.descriptionWidget = QtWidgets.QPlainTextEdit("<Enter Description>")
+        self.descriptionLabel = QtWidgets.QLabel("Change Description:")
+        self.chkboxLockedWidget = QtWidgets.QCheckBox("Keep files checked out?")
 
         headers = [" ", "File", "Type", "Action", "Folder"]
 
-        self.tableWidget = QtGui.QTableWidget(len(self.fileList), len(headers))
+        self.tableWidget = QtWidgets.QTableWidget(len(self.fileList), len(headers))
         self.tableWidget.setMaximumHeight(200)
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels(headers)
@@ -50,9 +51,9 @@ class SubmitChangeUi(QtGui.QDialog):
             column = 0
 
             # Create checkbox in first column
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            chkbox = QtGui.QCheckBox()
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            chkbox = QtWidgets.QCheckBox()
             chkbox.setCheckState(QtCore.Qt.Checked)
 
             layout.addWidget(chkbox)
@@ -66,14 +67,14 @@ class SubmitChangeUi(QtGui.QDialog):
             # Fill in the rest of the data
             # File
             fileName = file['File']
-            newItem = QtGui.QTableWidgetItem(os.path.basename(fileName))
+            newItem = QtWidgets.QTableWidgetItem(os.path.basename(fileName))
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
 
             # Text
             fileType = file['Type']
-            newItem = QtGui.QTableWidgetItem(fileType.capitalize())
+            newItem = QtWidgets.QTableWidgetItem(fileType.capitalize())
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
@@ -83,22 +84,22 @@ class SubmitChangeUi(QtGui.QDialog):
 
             path = ""
             if(pendingAction == "edit"):
-                path = os.path.join(iconPath, P4Icon.editFile)
+                path = os.path.join(interop.getIconPath(), "File0440.png")
             elif(pendingAction == "add"):
-                path = os.path.join(iconPath, P4Icon.addFile)
+                path = os.path.join(interop.getIconPath(), "File0242.png")
             elif(pendingAction == "delete"):
-                path = os.path.join(iconPath, P4Icon.deleteFile)
+                path = os.path.join(interop.getIconPath(), "File0253.png")
 
-            widget = QtGui.QWidget()
+            widget = QtWidgets.QWidget()
 
             icon = QtGui.QPixmap(path)
             icon = icon.scaled(16, 16)
 
-            iconLabel = QtGui.QLabel()
+            iconLabel = QtWidgets.QLabel()
             iconLabel.setPixmap(icon)
-            textLabel = QtGui.QLabel(pendingAction.capitalize())
+            textLabel = QtWidgets.QLabel(pendingAction.capitalize())
 
-            layout = QtGui.QHBoxLayout()
+            layout = QtWidgets.QHBoxLayout()
             layout.addWidget(iconLabel)
             layout.addWidget(textLabel)
             layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -109,7 +110,7 @@ class SubmitChangeUi(QtGui.QDialog):
             column += 1
 
             # Folder
-            newItem = QtGui.QTableWidgetItem(file['Folder'])
+            newItem = QtWidgets.QTableWidgetItem(file['Folder'])
             newItem.setFlags(newItem.flags() ^ QtCore.Qt.ItemIsEditable)
             self.tableWidget.setItem(i, column, newItem)
             column += 1
@@ -121,10 +122,10 @@ class SubmitChangeUi(QtGui.QDialog):
         '''
         Create the layouts and add widgets
         '''
-        check_box_layout = QtGui.QHBoxLayout()
+        check_box_layout = QtWidgets.QHBoxLayout()
         check_box_layout.setContentsMargins(2, 2, 2, 2)
 
-        main_layout = QtGui.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(6, 6, 6, 6)
 
         main_layout.addWidget(self.descriptionLabel)
@@ -150,14 +151,14 @@ class SubmitChangeUi(QtGui.QDialog):
     # --------------------------------------------------------------------------
     def on_submit(self):
         if not self.validateText():
-            QtGui.QMessageBox.warning(
+            QtWidgets.QMessageBox.warning(
                 interop.main_parent_window(), "Submit Warning", "No valid description entered")
             return
 
         files = []
         for i in range(self.tableWidget.rowCount()):
             cellWidget = self.tableWidget.cellWidget(i, 0)
-            if cellWidget.findChild(QtGui.QCheckBox).checkState() == QtCore.Qt.Checked:
+            if cellWidget.findChild(QtWidgets.QCheckBox).checkState() == QtCore.Qt.Checked:
                 files.append(self.fileList[i]['File'])
 
         keepCheckedOut = self.chkboxLockedWidget.checkState()

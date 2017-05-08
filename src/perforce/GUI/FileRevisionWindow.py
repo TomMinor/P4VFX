@@ -1,9 +1,8 @@
 from P4 import P4, P4Exception
-
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
-import GUI.DepotClientViewModel
+import DepotClientViewModel
 from perforce.AppInterop import interop
 
 def fullPath(idx):
@@ -18,7 +17,7 @@ def fullPath(idx):
 
     return list(reversed(result))
 
-class FileRevisionUI(QtGui.QDialog):
+class FileRevisionUI(QtWidgets.QDialog):
 
     def __init__(self, parent=interop.main_parent_window()):
         super(FileRevisionUI, self).__init__(parent)
@@ -26,7 +25,7 @@ class FileRevisionUI(QtGui.QDialog):
     def create(self, p4, files=[]):
         self.p4 = p4
 
-        path = iconPath + P4Icon.iconName
+        path = interop.getIconPath() + "p4.png"
         icon = QtGui.QIcon(path)
 
         self.setWindowTitle("File Revisions")
@@ -155,21 +154,21 @@ class FileRevisionUI(QtGui.QDialog):
         '''
         Create the widgets for the dialog
         '''
-        self.descriptionWidget = QtGui.QPlainTextEdit("<Enter Description>")
-        self.descriptionLabel = QtGui.QLabel("Change Description:")
-        self.getRevisionBtn = QtGui.QPushButton("Revert to Selected Revision")
-        self.getLatestBtn = QtGui.QPushButton("Sync to Latest Revision")
-        self.getPreviewBtn = QtGui.QPushButton("Preview Scene")
+        self.descriptionWidget = QtWidgets.QPlainTextEdit("<Enter Description>")
+        self.descriptionLabel = QtWidgets.QLabel("Change Description:")
+        self.getRevisionBtn = QtWidgets.QPushButton("Revert to Selected Revision")
+        self.getLatestBtn = QtWidgets.QPushButton("Sync to Latest Revision")
+        self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
-        self.fileTreeModel = QtGui.QFileSystemModel()
+        self.fileTreeModel = QtWidgets.QFileSystemModel()
         self.fileTreeModel.setRootPath(self.p4.cwd)
 
         model = TreeModel(self.p4)
         # model.populate("//{0}".format(self.p4.client), findDeleted=True)
         model.populate('//depot', findDeleted=True)
 
-        self.fileTree = QtGui.QTreeView()
+        self.fileTree = QtWidgets.QTreeView()
         self.fileTree.expandAll()
         self.fileTree.setModel(model)
 
@@ -195,44 +194,44 @@ class FileRevisionUI(QtGui.QDialog):
         headers = ["Revision", "User", "Action",
                    "Date", "Client", "Description"]
 
-        self.tableWidget = QtGui.QTableWidget()
+        self.tableWidget = QtWidgets.QTableWidget()
         self.tableWidget.setColumnCount(len(headers))
         self.tableWidget.setMaximumHeight(200)
         self.tableWidget.setMinimumWidth(500)
         self.tableWidget.setHorizontalHeaderLabels(headers)
         self.tableWidget.verticalHeader().setVisible(False)
-        self.tableWidget.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-        self.tableWidget.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.tableWidget.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.tableWidget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
-        self.statusBar = QtGui.QStatusBar()
+        self.statusBar = QtWidgets.QStatusBar()
         # self.statusBar.showMessage("Test")
 
-        self.horizontalLine = QtGui.QFrame()
-        self.horizontalLine.setFrameShape(QtGui.QFrame.Shape.HLine)
+        self.horizontalLine = QtWidgets.QFrame()
+        self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
-        if AppUtils.getCurrentSceneFile():
+        if interop.getCurrentSceneFile():
             self.fileTree.setCurrentIndex(
-                self.fileTreeModel.index(AppUtils.getCurrentSceneFile()))
+                self.fileTreeModel.index(interop.getCurrentSceneFile()))
             self.loadFileLog()
 
     def create_layout(self):
         '''
         Create the layouts and add widgets
         '''
-        check_box_layout = QtGui.QHBoxLayout()
+        check_box_layout = QtWidgets.QHBoxLayout()
         check_box_layout.setContentsMargins(2, 2, 2, 2)
 
-        main_layout = QtGui.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(6, 6, 6, 6)
 
         main_layout.addWidget(self.fileTree)
         main_layout.addWidget(self.tableWidget)
 
-        bottomLayout = QtGui.QHBoxLayout()
+        bottomLayout = QtWidgets.QHBoxLayout()
         bottomLayout.addWidget(self.getRevisionBtn)
-        bottomLayout.addSpacerItem(QtGui.QSpacerItem(20, 16))
+        bottomLayout.addSpacerItem(QtWidgets.QSpacerItem(20, 16))
         bottomLayout.addWidget(self.getPreviewBtn)
-        bottomLayout.addSpacerItem(QtGui.QSpacerItem(20, 16))
+        bottomLayout.addSpacerItem(QtWidgets.QSpacerItem(20, 16))
         bottomLayout.addWidget(self.getLatestBtn)
 
         main_layout.addLayout(bottomLayout)
@@ -274,7 +273,7 @@ class FileRevisionUI(QtGui.QDialog):
             Utils.p4Logger().info(
                 "Synced preview to {0} at revision {1}".format(tmpPath, revision))
             if self.isSceneFile:
-                AppUtils.openScene(tmpPath)
+                interop.openScene(tmpPath)
             else:
                 Utils.open_file(tmpPath)
 
@@ -299,7 +298,7 @@ class FileRevisionUI(QtGui.QDialog):
         desc = "Rollback #{0} to #{1}".format(
             currentRevision, rollbackRevision)
         if Utils.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
-            QtGui.QMessageBox.information(
+            QtWidgets.QMessageBox.information(
                 interop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
         self.loadFileLog()
@@ -400,9 +399,9 @@ class FileRevisionUI(QtGui.QDialog):
             # Fill in the rest of the data
             change = "#{0}".format(revision['revision'])
 
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            label = QtGui.QLabel(str(change))
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            label = QtWidgets.QLabel(str(change))
 
             layout.addWidget(label)
             layout.setAlignment(QtCore.Qt.AlignCenter)
@@ -415,9 +414,9 @@ class FileRevisionUI(QtGui.QDialog):
             # User
             user = revision['user']
 
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            label = QtGui.QLabel(str(user))
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            label = QtWidgets.QLabel(str(user))
             label.setStyleSheet("QLabel { border: none } ")
 
             layout.addWidget(label)
@@ -431,27 +430,28 @@ class FileRevisionUI(QtGui.QDialog):
             # Action
             pendingAction = revision['action']
 
+
             path = ""
             if(pendingAction == "edit"):
-                path = os.path.join(iconPath, P4Icon.editFile)
+                path = os.path.join(interop.getIconPath(), "File0440.png")
             elif(pendingAction == "add"):
-                path = os.path.join(iconPath, P4Icon.addFile)
+                path = os.path.join(interop.getIconPath(), "File0242.png")
             elif(pendingAction == "delete"):
-                path = os.path.join(iconPath, P4Icon.deleteFile)
+                path = os.path.join(interop.getIconPath(), "File0253.png")
 
-            widget = QtGui.QWidget()
+            widget = QtWidgets.QWidget()
 
             icon = QtGui.QPixmap(path)
             icon = icon.scaled(16, 16)
 
-            iconLabel = QtGui.QLabel()
+            iconLabel = QtWidgets.QLabel()
             iconLabel.setPixmap(icon)
-            textLabel = QtGui.QLabel(pendingAction.capitalize())
+            textLabel = QtWidgets.QLabel(pendingAction.capitalize())
             textLabel.setStyleSheet("QLabel { border: none } ")
 
             # @TODO Why not move these into a cute little function in a function
 
-            layout = QtGui.QHBoxLayout()
+            layout = QtWidgets.QHBoxLayout()
             layout.addWidget(iconLabel)
             layout.addWidget(textLabel)
             layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -464,9 +464,9 @@ class FileRevisionUI(QtGui.QDialog):
             # Date
             date = revision['date']
 
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            label = QtGui.QLabel(str(date))
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            label = QtWidgets.QLabel(str(date))
             label.setStyleSheet("QLabel { border: none } ")
 
             layout.addWidget(label)
@@ -480,9 +480,9 @@ class FileRevisionUI(QtGui.QDialog):
             # Client
             client = revision['client']
 
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            label = QtGui.QLabel(str(client))
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            label = QtWidgets.QLabel(str(client))
             label.setStyleSheet("QLabel { border: none } ")
 
             layout.addWidget(label)
@@ -497,9 +497,9 @@ class FileRevisionUI(QtGui.QDialog):
             # Description
             desc = revision['desc']
 
-            widget = QtGui.QWidget()
-            layout = QtGui.QHBoxLayout()
-            text = QtGui.QLineEdit()
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QHBoxLayout()
+            text = QtWidgets.QLineEdit()
             text.setText(desc)
             text.setReadOnly(True)
             text.setAlignment(QtCore.Qt.AlignLeft)

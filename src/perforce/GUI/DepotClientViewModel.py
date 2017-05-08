@@ -1,5 +1,6 @@
-from P4 import P4, P4Exception
+import os
 
+from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils

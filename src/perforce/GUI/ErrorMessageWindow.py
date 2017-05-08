@@ -2,7 +2,7 @@ from Qt import QtCore, QtGui, QtWidgets
 from perforce.AppInterop import interop
 
 def displayErrorUI(e):
-    error_ui = QtGui.QMessageBox()
+    error_ui = QtWidgets.QMessageBox()
     error_ui.setWindowFlags(QtCore.Qt.WA_DeleteOnClose)
 
     eMsg, type = Utils.parsePerforceError(e)

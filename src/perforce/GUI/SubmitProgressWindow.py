@@ -5,7 +5,7 @@ from Qt import QtCore, QtGui, QtWidgets
 import perforce.Utils as Utils
 from perforce.AppInterop import interop
 
-class SubmitProgressUI(QtGui.QDialog):
+class SubmitProgressUI(QtWidgets.QDialog):
 
     def __init__(self, totalFiles, parent=interop.main_parent_window()):
         super(SubmitProgressUI, self).__init__(parent)
@@ -47,7 +47,7 @@ class SubmitProgressUI(QtGui.QDialog):
         self.quitBtn.setText("Quit")
 
     def create(self, title, files=[]):
-        path = iconPath + "p4.png"
+        path = interop.getIconPath() + "p4.png"
         icon = QtGui.QIcon(path)
 
         self.setWindowTitle(title)
@@ -63,26 +63,26 @@ class SubmitProgressUI(QtGui.QDialog):
         Create the widgets for the dialog
         '''
 
-        self.overallProgressBar = QtGui.QProgressBar()
+        self.overallProgressBar = QtWidgets.QProgressBar()
         self.overallProgressBar.setMinimum(0)
         self.overallProgressBar.setMaximum(self.totalFiles)
         self.overallProgressBar.setValue(0)
 
-        self.fileProgressBar = QtGui.QProgressBar()
+        self.fileProgressBar = QtWidgets.QProgressBar()
         self.fileProgressBar.setMinimum(0)
         self.fileProgressBar.setMaximum(100)
         self.fileProgressBar.setValue(0)
 
-        self.quitBtn = QtGui.QPushButton("Cancel")
+        self.quitBtn = QtWidgets.QPushButton("Cancel")
 
     def create_layout(self):
         '''
         Create the layouts and add widgets
         '''
-        main_layout = QtGui.QVBoxLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         main_layout.setContentsMargins(6, 6, 6, 6)
 
-        formlayout1 = QtGui.QFormLayout()
+        formlayout1 = QtWidgets.QFormLayout()
         formlayout1.addRow("Total Progress:", self.overallProgressBar)
         formlayout1.addRow("File Progress:", self.fileProgressBar)
 

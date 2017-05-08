@@ -16,17 +16,13 @@ from perforce.AppInterop import interop
 # except:
 #     ui = None
 
-def init():
+def initMenu(p4):
     global ui
     # try:
     #     # cmds.deleteUI(ui.perforceMenu)
     #     AppUtils.closeWindow(ui.perforceMenu)
     # except:
     #     pass
-
-    p4 = P4()
-    if p4.p4config_file == 'noconfig':
-        Utils.loadP4Config(p4)
 
     # interop.initCallbacks()
 
@@ -40,7 +36,7 @@ def init():
     # mu.executeDeferred('ui.addMenu()')
 
 
-def close():
+def cleanupMenu():
     global ui
 
     # interop.cleanupCallbacks()

@@ -22,7 +22,7 @@ import maya.OpenMaya as api
 import perforce.GlobalVars
 from perforce.version import __version__
 from perforce.AppInterop.BaseInterop import BaseInterop, BaseCallbacks
-from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
+from perforce.GUI.Qt import QtCore, QtGui, QtWidgets, __binding__
 
 class MayaCallbacks(BaseCallbacks):
     contactrootenv = "CONTACTROOT"
@@ -112,23 +112,23 @@ class MayaInterop(BaseInterop):
         Get the main Maya window as a QtGui.QMainWindow instance
         @return: QtGui.QMainWindow instance of the top level Maya windows
         """
-        # try:
-        #     window = mel.eval('$temp1=$gMainWindow')
-        #     return window
-        # except RuntimeError as e:
-        #     print e
         
-        # return None
-        main_window_ptr = omui.MQtUtil.mainWindow()
-        if main_window_ptr:
-            return wrapInstance(long(main_window_ptr), QtWidgets.QWidget)
+        import maya.OpenMayaUI as apiUI
+        if __binding__ in ('PySide2', 'PyQt5'):
+            import shiboken2 as shiboken
         else:
-            return None
+            import shiboken
+        
+        ptr = apiUI.MQtUtil.mainWindow()
+        if ptr is not None:
+            return shiboken.wrapInstance(long(ptr), QtWidgets.QWidget)
+
 
     @staticmethod
     def createMenu(entries):
         try:
-            gMainWindow = MayaInterop.main_parent_window()
+            # gMainWindow = MayaInterop.main_parent_window()
+            gMainWindow = maya.mel.eval('$temp1=$gMainWindow')
         except RuntimeError as e:
             print e
             print 'Are you running in Batch Python?'
@@ -176,7 +176,7 @@ class MayaInterop(BaseInterop):
                         print 'Maya error while trying to change menu parent:',
                         print e
                 else:
-                    raise ValueError('Unknown entry type')
+                    raise ValueError('Unknown entry type for \'%s\'' % entry)
             
             try:
                 cmds.menuItem(label="Version {0}".format(__version__), en=False)
