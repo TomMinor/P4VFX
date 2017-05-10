@@ -12,6 +12,12 @@ class TestInterop(BaseInterop):
     def setupTestingEnvironment():
         app = QtWidgets.QApplication([])
 
+        # Pretty dark stylesheet to match literally every CG app ever
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'style.qss')
+        with open(path, 'r') as f:
+            stylesheet = f.read()
+        app.setStyleSheet(stylesheet)
+
         TestInterop.window = QtWidgets.QWidget()
         return TestInterop.window, app
 
