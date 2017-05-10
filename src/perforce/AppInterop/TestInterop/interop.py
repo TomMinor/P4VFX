@@ -1,3 +1,5 @@
+import os
+
 from perforce.version import __version__
 from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 from perforce.AppInterop.BaseInterop import BaseInterop
@@ -15,50 +17,17 @@ class TestInterop(BaseInterop):
 
         TestInterop.window = QtWidgets.QLabel('Test')
         TestInterop.window.show()
+        return app
 
     @staticmethod
     def main_parent_window():
         return TestInterop.window
 
     @staticmethod
-    def createMenu(entries):
-        print 'Initialising menu...'
-
-        def fillMenu(entries, indent=0):
-            debugIndent = '\t' * indent
-
-            for entry in entries:
-                if entry.get('divider'):
-                    # Create divider
-                    print debugIndent,
-                    if entry.get('label'):
-                        print entry['label'],
-                    print '-'*50
-
-                elif entry.get('entries'):
-                    # Create submenu
-                    print debugIndent,
-                    print '>>>',
-                    if entry.get('label'):
-                        print entry['label']
-
-                    fillMenu(entry['entries'], indent+1)
-                elif entry.get('command'):
-                    # Add an entry
-                    print debugIndent,
-                    print '|' + entry.get('label')
-                else:
-                    raise ValueError('Unknown entry type')
-
-            # Add a readonly version entry
-            print debugIndent,
-            print '|' + __version__
-
-        fillMenu(entries, debugPrint=batchmode)
-
-    @staticmethod
     def getIconPath():
-        raise NotImplementedError
+        cwd = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+        iconpath = os.path.join(cwd, "../images/")
+        return os.path.realpath(iconpath)
 
     @staticmethod
     def getSceneFiles():
@@ -83,3 +52,22 @@ class TestInterop(BaseInterop):
     @staticmethod
     def refresh():
         raise NotImplementedError
+
+    def initializeMenu(self, entries):
+        return None
+
+    def addMenuDivider(self, label):
+        print label
+        print '-'*50
+       
+    def addMenuLabel(self, label):
+        print '|' + label
+
+    def addMenuSubmenu(self, label, icon, entries):
+        print '>>>',
+        print label
+
+        self.fillMenu(entries)
+
+    def addMenuCommand(self, label, icon, command):
+        print '|' + label

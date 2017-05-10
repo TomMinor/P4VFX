@@ -181,11 +181,11 @@ def loadP4Config(p4):
         print os.path.isfile( configpath )
         print os.path.isfile("C:/Users/tom/.p4config")
         if os.path.isfile( os.environ['P4CONFIG'].replace('\\', '/') ):
-            p4_logger.info("Reading from config file at {0}".format(os.environ['P4CONFIG']) )
+            p4Logger().info("Reading from config file at {0}".format(os.environ['P4CONFIG']) )
             with open( os.environ['P4CONFIG'] ) as file:
                 for line in file:
                     key, value = line.split("=")
-                    p4_logger.info("Setting {0}={1}".format(key,value))
+                    p4Logger().info("Setting {0}={1}".format(key,value))
                     p4.set_env(key, value)
 
 # ToDo rewrite this AWFUL function
@@ -195,7 +195,7 @@ def writeToP4Config(config, key, value):
     found = False
     fileinput.close()
     
-    p4_logger.info("Writing {0}:{1} to config {2}".format(key, value, config))
+    p4Logger().info("Writing {0}:{1} to config {2}".format(key, value, config))
 
     if config == 'noconfig':
         raise RuntimeError('No configuration file found (%s)' % config)
@@ -217,14 +217,14 @@ def writeToP4Config(config, key, value):
             with open(config, "a") as file:
                 file.write( "{0}={1}\n".format( key, value ) )
     except Exception as e:
-        p4_logger.error(e)
+        p4Logger().error(e)
 
 
 def isPathInClientRoot(p4, path):
     if inDirectory(path, p4.cwd):
         return True
     else:
-        p4_logger.warning("{0} not in client root".format(path))
+        p4Logger().warning("{0} not in client root".format(path))
         return False
 
 
@@ -237,7 +237,7 @@ def queryChangelists( p4, status = None):
     try:
         return p4.run(args)
     except P4Exception as e:
-        p4_logger.warning(e)
+        p4Logger().warning(e)
         raise e
 
 def parsePerforceError(e):
@@ -266,7 +266,7 @@ def parsePerforceError(e):
 
 def submitChange(p4, files, description, callback, keepCheckedOut = False):
     # Shitty method #1
-    p4_logger.info("Files Passed for submission = {0}".format(files))
+    p4Logger().info("Files Passed for submission = {0}".format(files))
     
     print "Opened ", p4.run_opened("...")
 
@@ -280,15 +280,15 @@ def submitChange(p4, files, description, callback, keepCheckedOut = False):
    
     changeFiles = [ entry['clientFile'] for entry in opened ]# change._files
 
-    p4_logger.info("Changelist = {0}".format(changeFiles))
+    p4Logger().info("Changelist = {0}".format(changeFiles))
 
     for changeFile in changeFiles:
         if changeFile in files:
             fileList.append(changeFile)
         else:
-            p4_logger.warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
+            p4Logger().warning("File {0} ({1}) not in changelist".format(changeFile, p4.run_opened(changeFile)[0]['action']))
             
-    p4_logger.info("Final changelist files = {0}".format(fileList)) 
+    p4Logger().info("Final changelist files = {0}".format(fileList)) 
 
     print [ x['clientFile'] for x in fullChangelist ]
     print [ x['clientFile'] for x in opened ]
@@ -306,9 +306,9 @@ def submitChange(p4, files, description, callback, keepCheckedOut = False):
             result = p4.run_submit("-r", "-d", description, progress=callback, handler=callback)
         else:
             result = p4.run_submit("-d", description, progress=callback, handler=callback)
-        p4_logger.info(result)
+        p4Logger().info(result)
     except P4Exception as e:
-        p4_logger.warning(e)
+        p4Logger().warning(e)
         raise e
 
     p4.progress = None
@@ -325,13 +325,13 @@ def submitChange(p4, files, description, callback, keepCheckedOut = False):
     #         result = p4.run_submit(change, "-r")
     #     else:
     #         result = p4.run_submit(change)
-    #     p4_logger.info(result)
+    #     p4Logger().info(result)
     # except P4Exception as e:
-    #     p4_logger.warning(e)
+    #     p4Logger().warning(e)
     #     raise e
 
 def syncPreviousRevision(p4, file, revision, description):
-    p4_logger.info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
+    p4Logger().info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
 
     change = p4.fetch_change()
     change._description = description
@@ -349,22 +349,22 @@ def syncPreviousRevision(p4, file, revision, description):
         
         # Try to remove from changelist if we have it checked out
         try:
-            p4_logger.info( p4.run_revert("-k", file) )
+            p4Logger().info( p4.run_revert("-k", file) )
         except P4Exception as e:
             errors.append(e)
         
         try:
-            p4_logger.info( p4.run_edit("-c", changeId, file) )
+            p4Logger().info( p4.run_edit("-c", changeId, file) )
         except P4Exception as e:
             errors.append(e)
             
         try:
-            p4_logger.info( p4.run_sync("-f", file) )
+            p4Logger().info( p4.run_sync("-f", file) )
         except P4Exception as e:
             errors.append(e)
         
         try:
-            p4_logger.info( p4.run_resolve("-ay") )
+            p4Logger().info( p4.run_resolve("-ay") )
         except P4Exception as e:
             errors.append(e)
 
@@ -374,7 +374,7 @@ def syncPreviousRevision(p4, file, revision, description):
             errors.append(e)
             
         try:
-            p4_logger.info( p4.run_submit(change) )
+            p4Logger().info( p4.run_submit(change) )
         except P4Exception as e:
             errors.append(e)
         
@@ -392,19 +392,19 @@ def forceChangelistDelete(p4, lists):
             isClient = (list['client'] == p4.client)
             
             if isUser and isClient:
-                p4_logger.info("Deleting change {0} on client {1}".format(list['change'], list['client']))
+                p4Logger().info("Deleting change {0} on client {1}".format(list['change'], list['client']))
                 try:
                 	p4.run_unlock("-c", list['change'])
                 	p4.run_revert("-c", list['change'], "...")
             	except P4Exception as e:
             		pass
-                p4_logger.info(p4.run_change("-d", list['change']))
+                p4Logger().info(p4.run_change("-d", list['change']))
             if not isUser:
-                p4_logger.warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
+                p4Logger().warning( "User {0} doesn't own change {1}, can't delete".format(p4.user, list['change']) )
             if not isClient:
-                p4_logger.warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
+                p4Logger().warning( "Client {0} doesn't own change {1}, can't delete".format(p4.client, list['change']) )
         except P4Exception as e:
-            p4_logger.critical(e)
+            p4Logger().critical(e)
 
 # Create workspace
 def createWorkspace(p4, rootPath, nameSuffix = None):
@@ -430,21 +430,21 @@ def createWorkspace(p4, rootPath, nameSuffix = None):
         
     p4.cwd = spec['Root']
     
-    p4_logger.info("Creating workspace {0}...".format(client))
+    p4Logger().info("Creating workspace {0}...".format(client))
     
     p4.save_client(spec)
 
-    p4_logger.info("Syncing new workspace...")
+    p4Logger().info("Syncing new workspace...")
     
     try:
         p4.run_sync("...")
-        p4_logger.info("Sync Done!")
+        p4Logger().info("Sync Done!")
     except P4Exception as e:
-        p4_logger.info("Sync failed, probably because the depot is empty")
+        p4Logger().info("Sync failed, probably because the depot is empty")
 
     if not os.path.exists(spec['Root']):
         os.makedirs(spec['Root'])
 
-    p4_logger.info("Writing to config...")
+    p4Logger().info("Writing to config...")
     writeToP4Config(p4.p4config_file, "P4CLIENT", p4.client)
-    p4_logger.info("Done!")
+    p4Logger().info("Done!")

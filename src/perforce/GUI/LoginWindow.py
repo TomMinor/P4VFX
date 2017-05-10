@@ -7,11 +7,10 @@ from ErrorMessageWindow import displayErrorUI
 
 def setupConnection(p4):
     try:
-        firstTimeLogin( enterUsername=p4.user is None,
-                        enterPassword=p4.password is None)
+        # Can we run commands?
+        p4.run_info()
     except P4Exception as e:
-        # If user/pass is set but it fails anyway, try a last ditch attempt
-        # to let the user input their stuff
+        # If not, we might not have logged in yet
         try:
             self.firstTimeLogin(p4,
                                 enterUsername=p4.user is None,
@@ -69,7 +68,3 @@ def firstTimeLogin(self, p4, enterUsername=True, enterPassword=True, parent=None
     if username:
         Utils.writeToP4Config(p4.p4config_file,
                               "P4USER", str(username[0]))
-
-    # if password:
-    #     Utils.writeToP4Config(p4.p4config_file,
-    #                           "P4PASSWD", str(password[0]))

@@ -7,11 +7,13 @@ from test_perforce import TestingEnvironment
 
 class PerforceUITests(unittest.TestCase):
     def setUp(self):
-    	print repr(interop)
-        interop.setupTestingEnvironment()
+        app = interop.setupTestingEnvironment()
         
-        self.p4 = TestingEnvironment()        
+        self.p4 = TestingEnvironment()
         self.menu = PerforceMenu.MainShelf(self.p4)
+        self.menu.addMenu()
+
+        app.exec_()
 
     def testOne(self):
         self.failUnless(True)

@@ -122,70 +122,7 @@ class MayaInterop(BaseInterop):
         ptr = apiUI.MQtUtil.mainWindow()
         if ptr is not None:
             return shiboken.wrapInstance(long(ptr), QtWidgets.QWidget)
-
-
-    @staticmethod
-    def createMenu(entries):
-        try:
-            # gMainWindow = MayaInterop.main_parent_window()
-            gMainWindow = maya.mel.eval('$temp1=$gMainWindow')
-        except RuntimeError as e:
-            print e
-            print 'Are you running in Batch Python?'
-            gMainWindow = None
-
-        try:
-            print 'Initialising menu...'
-            perforceMenu = cmds.menu("PerforceMenu", parent=gMainWindow, tearOff=True, label='Perforce')
-            cmds.setParent(perforceMenu, menu=True)
-            batchmode = False
-        except RuntimeError as e:
-            print 'Maya error while trying to create menu:',
-            print e
-            batchmode = True
-
-        def fillMenu(entries):
-            for entry in entries:
-                if entry.get('divider'):
-                    try:
-                        cmds.menuItem(divider=True, label=entry.get('label'))
-                    except RuntimeError as e:
-                        print 'Maya error while trying to create divider:',
-                        print e
-
-                elif entry.get('entries'):
-                    try:
-                        cmds.menuItem(subMenu=True, tearOff=False, label=entry.get('label'), image=entry.get('image'))
-                    except RuntimeError as e:
-                        print 'Maya error while trying to create submenu:',
-                        print e
-
-                    fillMenu( entry['entries'] )
-
-                    try:
-                        cmds.setParent('..', menu=True )
-                    except RuntimeError as e:
-                        print 'Maya error while trying to change menu parent:',
-                        print e
-                elif entry.get('command'):
-                    try:
-                        cmds.menuItem(  label=entry.get('label'),
-                                        image=entry.get('image'),
-                                        command=entry.get('command') )
-                    except RuntimeError as e:
-                        print 'Maya error while trying to change menu parent:',
-                        print e
-                else:
-                    raise ValueError('Unknown entry type for \'%s\'' % entry)
-            
-            try:
-                cmds.menuItem(label="Version {0}".format(__version__), en=False)
-            except RuntimeError as e:
-                print 'Maya error while trying to add menu entry:',
-                print e
-
-        fillMenu(entries)
-
+  
     @staticmethod
     def getIconPath():
         return os.environ['MAYA_APP_DIR'] + "/scripts/Perforce/images/"
@@ -217,3 +154,58 @@ class MayaInterop(BaseInterop):
     def refresh():
         cmds.refresh()
 
+
+    def initializeMenu(self, entries):
+        try:
+            # gMainWindow = MayaInterop.main_parent_window()
+            gMainWindow = maya.mel.eval('$temp1=$gMainWindow')
+        except RuntimeError as e:
+            print e
+            print 'Are you running in Batch Python?'
+            gMainWindow = None
+
+        try:
+            print 'Initialising menu...'
+            perforceMenu = cmds.menu("PerforceMenu", parent=gMainWindow, tearOff=True, label='Perforce')
+            cmds.setParent(perforceMenu, menu=True)
+        except RuntimeError as e:
+            print 'Maya error while trying to create menu:',
+            print e
+
+        return perforceMenu
+
+    def addMenuDivider(self, label):
+        try:
+            cmds.menuItem(divider=True, label=label)
+        except RuntimeError as e:
+            print 'Maya error while trying to create divider:',
+            print e
+       
+    def addMenuLabel(self, label):
+        try:
+            cmds.menuItem(label=label, en=False)
+        except RuntimeError as e:
+            print 'Maya error while trying to add menu entry:',
+            print e
+
+    def addMenuSubmenu(self, label, icon, entries):
+        try:
+            cmds.menuItem(subMenu=True, tearOff=False, label=label, image=icon)
+        except RuntimeError as e:
+            print 'Maya error while trying to create submenu:',
+            print e
+
+        self.fillMenu(entries)
+
+        try:
+            cmds.setParent('..', menu=True )
+        except RuntimeError as e:
+            print 'Maya error while trying to change menu parent:',
+            print e
+
+    def addMenuCommand(self, label, icon, command):
+        try:
+            cmds.menuItem( label=label, image=icon, command=command )
+        except RuntimeError as e:
+            print 'Maya error while trying to change menu parent:',
+            print e

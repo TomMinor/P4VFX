@@ -1,3 +1,5 @@
+import os
+
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
@@ -73,7 +75,7 @@ class FileRevisionUI(QtWidgets.QDialog):
                 print p4child
                 data = [os.path.basename(p4child), "Folder", "", "", ""]
 
-                childData = TreeItem(data, treeItem)
+                childData = DepotClientViewModel.TreeItem(data, treeItem)
                 treeItem.appendChild(childData)
 
                 childData.appendChild(None)
@@ -85,7 +87,7 @@ class FileRevisionUI(QtWidgets.QDialog):
                     data = [fileName, f['type'], f[
                         'time'], f['action'], f['change']]
 
-                    fileData = TreeItem(data, childData)
+                    fileData = DepotClientViewModel.TreeItem(data, childData)
                     childData.appendChild(fileData)
 
 
@@ -126,7 +128,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if idx.child(0, 0).data() == "TMP":
             for p4child in p4children_names:
                 data = [p4child, "", "", ""]
-                childData = TreeItem(data, idx)
+                childData = DepotClientViewModel.TreeItem(data, idx)
                 treeItem.appendChild(childData)
 
         i = 0
@@ -142,10 +144,10 @@ class FileRevisionUI(QtWidgets.QDialog):
             childIdx = child.internalPointer()
 
             data = ["TEST", "TEST", "TEST", "TEST"]
-            childDir = TreeItem(data, childIdx)
+            childDir = DepotClientViewModel.TreeItem(data, childIdx)
             childIdx.appendChild(childDir)
 
-            tmpDir = TreeItem(["TMP", "", "", "", ""], childDir)
+            tmpDir = DepotClientViewModel.TreeItem(["TMP", "", "", "", ""], childDir)
             childDir.appendChild(tmpDir)
 
         # view.setModel(model)
@@ -164,7 +166,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.fileTreeModel = QtWidgets.QFileSystemModel()
         self.fileTreeModel.setRootPath(self.p4.cwd)
 
-        model = TreeModel(self.p4)
+        model = DepotClientViewModel.TreeModel(self.p4)
         # model.populate("//{0}".format(self.p4.client), findDeleted=True)
         model.populate('//depot', findDeleted=True)
 
@@ -179,7 +181,7 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             self.populateSubDir(idx)
 
-            # test = TreeItem( ["TEST", "", "", ""], treeItem  )
+            # test = DepotClientViewModel.TreeItem( ["TEST", "", "", ""], treeItem  )
             # treeItem.appendChild( test )
 
         self.fileTree.setColumnWidth(0, 220)

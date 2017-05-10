@@ -5,37 +5,17 @@ from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
 
-class TreeItem(object):
-
-    def __init__(self, data, parent=None):
-        self.parentItem = parent
-        self.data = data
-        self.childItems = []
-
-    def appendChild(self, item):
-        self.childItems.append(item)
-
-    def popChild(self):
-        if self.childItems:
-            self.childItems.pop()
-
-    def row(self):
-        if self.parentItem:
-            return self.parentItem.childItems.index(self)
-        return 0
-
-
 
 def epochToTimeStr(time):
     import datetime
     return datetime.datetime.utcfromtimestamp(int(time)).strftime("%d/%m/%Y %H:%M:%S")
 
-
-
 def perforceIsDir(p4path):
     try:
-        if p4path[-1] == '/' or p4path[-1] == '\\':
+        #  
+        if p4path[-1] in ['/', '\\']:
             p4path = p4path[:-1]
+
         result = p4.run_dirs(p4path)
         return len(result) > 0
     except P4Exception as e:
@@ -81,6 +61,24 @@ def p4Filelist(p4, dir, findDeleted=False):
 
         return results
 
+class TreeItem(object):
+
+    def __init__(self, data, parent=None):
+        self.parentItem = parent
+        self.data = data
+        self.childItems = []
+
+    def appendChild(self, item):
+        self.childItems.append(item)
+
+    def popChild(self):
+        if self.childItems:
+            self.childItems.pop()
+
+    def row(self):
+        if self.parentItem:
+            return self.parentItem.childItems.index(self)
+        return 0
 
 class TreeModel(QtCore.QAbstractItemModel):
 

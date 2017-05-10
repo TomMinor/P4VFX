@@ -27,8 +27,13 @@ def setupEnvironment():
 
 setupEnvironment()
 
+
 from P4 import P4, P4Exception
+from perforce.GUI import LoginWindow
 def TestingEnvironment():
     p4 = P4()
+    p4.connect()
+
+    LoginWindow.setupConnection(p4)
 
     return p4
