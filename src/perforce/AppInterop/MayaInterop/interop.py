@@ -166,13 +166,11 @@ class MayaInterop(BaseInterop):
 
         try:
             print 'Initialising menu...'
-            perforceMenu = cmds.menu("PerforceMenu", parent=gMainWindow, tearOff=True, label='Perforce')
-            cmds.setParent(perforceMenu, menu=True)
+            self.perforceMenu = cmds.menu("PerforceMenu", parent=gMainWindow, tearOff=True, label='Perforce')
+            cmds.setParent(self.perforceMenu, menu=True)
         except RuntimeError as e:
             print 'Maya error while trying to create menu:',
             print e
-
-        return perforceMenu
 
     def addMenuDivider(self, label):
         try:

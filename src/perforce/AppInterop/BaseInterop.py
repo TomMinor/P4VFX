@@ -26,8 +26,9 @@ class BaseInterop(object):
     def createMenu(entries):
         from perforce.AppInterop import interop 
 
+        # We need to import interop so the appropriate class is used while creating the menus
         interop = interop()
-        interop.menu = interop.initializeMenu(entries)
+        interop.initializeMenu(entries)
         interop.fillMenu(entries)
         interop.addMenuLabel("Version {0}".format(__version__))
 

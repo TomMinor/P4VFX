@@ -5,9 +5,6 @@ from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 from perforce.AppInterop.BaseInterop import BaseInterop
 
 
-from PySide import QtCore
-from PySide import QtGui
-
 class TestInterop(BaseInterop):
     window = None
 
@@ -15,9 +12,8 @@ class TestInterop(BaseInterop):
     def setupTestingEnvironment():
         app = QtWidgets.QApplication([])
 
-        TestInterop.window = QtWidgets.QLabel('Test')
-        TestInterop.window.show()
-        return app
+        TestInterop.window = QtWidgets.QWidget()
+        return TestInterop.window, app
 
     @staticmethod
     def main_parent_window():
@@ -53,21 +49,33 @@ class TestInterop(BaseInterop):
     def refresh():
         raise NotImplementedError
 
+
     def initializeMenu(self, entries):
-        return None
+        window = self.main_parent_window()
+        vbox = QtWidgets.QVBoxLayout()
+        window.setLayout(vbox)
+
+        self.menu_bar = QtWidgets.QMenuBar()
+        self.menu = self.menu_bar.addMenu('Perforce')
+        vbox.addWidget(self.menu_bar)
 
     def addMenuDivider(self, label):
-        print label
-        print '-'*50
+        self.menu.addSeparator()
        
     def addMenuLabel(self, label):
-        print '|' + label
+        self.menu.addAction(label)
 
     def addMenuSubmenu(self, label, icon, entries):
-        print '>>>',
-        print label
+        # Save our current menu
+        parent = self.menu
+        self.menu = parent.addMenu(label)
 
+        # Fill up the submenu
         self.fillMenu(entries)
 
+        # Reset our current menu
+        self.menu = parent
+
+
     def addMenuCommand(self, label, icon, command):
-        print '|' + label
+        self.menu.addAction(label, command)
