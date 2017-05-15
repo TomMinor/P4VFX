@@ -26,4 +26,5 @@ To use it, simply call it like so:
 ```python install.py --p4port ssl:12.34.567.8:1666```
 
 (For convenience, P4Python is bundled within the repo.)
-**Note: The Mac P4Python library isn't bundled within the repo yet, but it is just a case of placing it in appropriate PATH so the application can find it.
+
+**Note: The Mac P4Python library isn't bundled within the repo yet, but it is just a case of placing it in appropriate PATH so the application can find it.**
