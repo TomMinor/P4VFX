@@ -72,9 +72,8 @@ def logSymlink(src, dst):
 def setupCommandLineArgs():
     parser = argparse.ArgumentParser()
 
-    requiredNamed = parser.add_argument_group('required named arguments')
-    requiredNamed.add_argument(
-        '-p', '--p4port', help='The Perforce server IP saved to P4CONFIG, e.g. ssl:12.34.567.8:1666', required=True)
+    parser.add_argument(
+        '-p', '--p4port', help='The Perforce server IP saved to P4CONFIG, e.g. ssl:12.34.567.8:1666')
 
     parser.add_argument(
         '-c', '--p4config', help='The P4CONFIG file to write to (default is \'~/.p4config\')', default='~/.p4config')
@@ -210,8 +209,9 @@ def install(args):
     # @ToDo
     # install_p4python( os.path.join(getNukePreferences(),'scripts') )
 
-    # Configure P4CONFIG etc 
-    install_environment(args)
+    # Configure P4CONFIG etc
+    if args.p4config:
+        install_environment(args)
 
 
 if __name__ == '__main__':

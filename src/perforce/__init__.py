@@ -4,11 +4,11 @@ except ImportError as e:
     raise ImportError('%s, ensure P4API is installed into your DCC script paths' % e)
 
 import logging
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logging.basicConfig(level=logging.DEBUG)
 
-import Utils
-reload(Utils)
+from PerforceUtils import SetupConnection
+reload(SetupConnection)
 
 import GUI
 reload(GUI)
@@ -18,7 +18,7 @@ reload(GUI)
 p4 = P4()
 
 def init():
-    Utils.setupConnection(p4)
+    SetupConnection.connect(p4)
 
     GUI.initMenu(p4)
 

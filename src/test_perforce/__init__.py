@@ -1,5 +1,7 @@
 import unittest
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 
 def setupEnvironment():
     try:
@@ -29,12 +31,11 @@ setupEnvironment()
 
 
 from P4 import P4, P4Exception
-
-import perforce.Utils as Utils
+from perforce.PerforceUtils import SetupConnection
 def TestingEnvironment():
     p4 = P4()
     p4.connect()
 
-    Utils.setupConnection(p4)
+    SetupConnection.connect(p4)
 
     return p4

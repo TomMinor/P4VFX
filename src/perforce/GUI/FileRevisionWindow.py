@@ -117,8 +117,8 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.fileTreeModel.setRootPath(self.p4.cwd)
 
         model = DepotClientViewModel.TreeModel(self.p4)
-        # model.populate("//{0}".format(self.p4.client), findDeleted=True)
-        model.populate('//depot', findDeleted=True)
+        model.populate("//{0}".format(self.p4.client), findDeleted=True)
+        # model.populate('//depot', findDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
         self.fileTree.expandAll()

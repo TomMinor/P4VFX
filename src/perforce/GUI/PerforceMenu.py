@@ -38,9 +38,6 @@ class MainShelf:
         #     except P4Exception as e:
         #         Utils.p4Logger().warning(e)
 
-        # @ToDo this shouldn't be in the GUI code
-        self.p4.cwd = self.p4.fetch_client()['Root']
-
     def close(self):
         try:
             self.revisionUi.deleteLater()

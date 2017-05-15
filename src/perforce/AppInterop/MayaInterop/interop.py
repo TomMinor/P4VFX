@@ -124,6 +124,10 @@ class MayaInterop(BaseInterop):
             return shiboken.wrapInstance(long(ptr), QtWidgets.QWidget)
   
     @staticmethod
+    def getSettingsPath():
+        return os.environ['MAYA_APP_DIR']
+
+    @staticmethod
     def getIconPath():
         return os.environ['MAYA_APP_DIR'] + "/scripts/Perforce/images/"
     

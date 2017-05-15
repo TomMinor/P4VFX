@@ -79,6 +79,25 @@ class TreeItem(object):
         self.data = data
         self.childItems = []
 
+    def appendFileItem(self, filepath, filetype, time, action, change):
+        fileName = os.path.basename(filepath)
+
+        # Kludge to pass through the raw path as an extra column that simply isn't used
+        data = (fileName, filetype, time, action, change, filepath)
+
+        fileItem = TreeItem(data, self)
+        self.appendChild(fileItem)
+
+    def appendFolderItem(self, dirpath):
+        dirName = os.path.basename(dirpath)
+
+        # Kludge to pass through the raw path as an extra column that simply isn't used
+        data = (dirName, 'Folder', '', '', '', dirpath)
+
+        fileItem = TreeItem(data, self)
+        self.appendChild(fileItem)
+
+
     def appendChild(self, item):
         self.childItems.append(item)
 
@@ -198,22 +217,27 @@ class TreeModel(QtCore.QAbstractItemModel):
         for dir in dirs:
             dirName = os.path.basename(dir['dir'])
             subDir = '/'.join( [rootdir, dirName] )
-            data = [dirName, "Folder", "", "", "", dir['dir']]
+            # data = [dirName, "Folder", "", "", "", dir['dir']]
 
-            treeItem = TreeItem(data, self.rootItem)
-            self.rootItem.appendChild(treeItem)
+            # treeItem = TreeItem(data, self.rootItem)
+            # self.rootItem.appendChild(treeItem)
+
+            self.rootItem.appendFolderItem(dir['dir'])
 
             treeItem.appendChild(None)
 
             files = p4Filelist(self.p4, dir['dir'], findDeleted)
 
             for f in files:
-                fileName = os.path.basename(f['name'])
-                # Temporary kludge to pass through the raw path as an extra column that simply isn't used
-                data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+                 # def appendFileItem(self, filepath, filetype, time, action, change):
+                self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
 
-                fileItem = TreeItem(data, treeItem)
-                treeItem.appendChild(fileItem)
+                # fileName = os.path.basename(f['name'])
+                # # Temporary kludge to pass through the raw path as an extra column that simply isn't used
+                # data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+
+                # fileItem = TreeItem(data, treeItem)
+                # treeItem.appendChild(fileItem)
 
     def populateSubDir(self, idx, root="//depot", findDeleted=False):
         idxPathModel = fullPath(idx)

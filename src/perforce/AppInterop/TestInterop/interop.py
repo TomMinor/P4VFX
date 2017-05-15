@@ -10,14 +10,24 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def setupTestingEnvironment():
+        class TestWidget(QtWidgets.QWidget):
+            def keyPressEvent(self, e):
+                if e.key() == QtCore.Qt.Key_Escape:
+                    self.close()
+
         app = QtWidgets.QApplication([])
 
-        TestInterop.window = QtWidgets.QWidget()
+        TestInterop.window = TestWidget()
         return TestInterop.window, app
 
     @staticmethod
     def main_parent_window():
         return TestInterop.window
+
+    @staticmethod
+    def getSettingsPath():
+        cwd = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+        return cwd
 
     @staticmethod
     def getIconPath():

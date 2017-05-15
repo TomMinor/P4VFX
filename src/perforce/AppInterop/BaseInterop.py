@@ -33,6 +33,10 @@ class BaseInterop(object):
         interop.addMenuLabel("Version {0}".format(__version__))
 
     @staticmethod
+    def getSettingsPath():
+        raise NotImplementedError
+
+    @staticmethod
     def getIconPath():
         raise NotImplementedError
 
