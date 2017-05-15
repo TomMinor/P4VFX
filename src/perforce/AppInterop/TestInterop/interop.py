@@ -59,7 +59,7 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def refresh():
-        raise NotImplementedError
+        pass
 
 
     def initializeMenu(self, entries):

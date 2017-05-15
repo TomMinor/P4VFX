@@ -15,8 +15,8 @@ class PerforceUITests(unittest.TestCase):
         self.p4 = TestingEnvironment()
         initMenu(self.p4)
 
-        window.show()
-        app.exec_()
+        # window.show()
+        # app.exec_()
 
     def testOne(self):
         self.failUnless(True)

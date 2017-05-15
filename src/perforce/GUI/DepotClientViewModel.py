@@ -96,6 +96,7 @@ class TreeItem(object):
 
         fileItem = TreeItem(data, self)
         self.appendChild(fileItem)
+        self.appendChild(None)
 
 
     def appendChild(self, item):
@@ -217,27 +218,18 @@ class TreeModel(QtCore.QAbstractItemModel):
         for dir in dirs:
             dirName = os.path.basename(dir['dir'])
             subDir = '/'.join( [rootdir, dirName] )
-            # data = [dirName, "Folder", "", "", "", dir['dir']]
-
-            # treeItem = TreeItem(data, self.rootItem)
-            # self.rootItem.appendChild(treeItem)
-
             self.rootItem.appendFolderItem(dir['dir'])
-
-            treeItem.appendChild(None)
 
             files = p4Filelist(self.p4, dir['dir'], findDeleted)
 
             for f in files:
-                 # def appendFileItem(self, filepath, filetype, time, action, change):
                 self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
 
-                # fileName = os.path.basename(f['name'])
-                # # Temporary kludge to pass through the raw path as an extra column that simply isn't used
-                # data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+        for i in range(self.rootrowcount()):
+            idx = self.index(i, 0, self.parent(QtCore.QModelIndex()))
+            treeItem = idx.internalPointer()
 
-                # fileItem = TreeItem(data, treeItem)
-                # treeItem.appendChild(fileItem)
+            self.populateSubDir(idx)
 
     def populateSubDir(self, idx, root="//depot", findDeleted=False):
         idxPathModel = fullPath(idx)
@@ -246,8 +238,6 @@ class TreeModel(QtCore.QAbstractItemModel):
 
         if not idxFullPath:
             idxFullPath = "."
-
-        # children = []
 
         p4path = '/'.join([root, idxFullPath, '*'])
 
@@ -263,8 +253,6 @@ class TreeModel(QtCore.QAbstractItemModel):
         p4subdir_names = [child['dir'] for child in p4subdirs]
 
         treeItem = idx.internalPointer()
-
-        # print idx.child(0,0).data(), p4subidrs
 
         if not idx.child(0, 0).data() and p4subdirs:
             # Pop empty "None" child

@@ -113,34 +113,24 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
-        self.fileTreeModel = QtWidgets.QFileSystemModel()
-        self.fileTreeModel.setRootPath(self.p4.cwd)
+        # self.fileTreeModel = QtWidgets.QFileSystemModel()
+        # self.fileTreeModel.setRootPath(self.p4.cwd)
 
-        model = DepotClientViewModel.TreeModel(self.p4)
-        model.populate("//{0}".format(self.p4.client), findDeleted=True)
-        # model.populate('//depot', findDeleted=True)
+        self.model = DepotClientViewModel.TreeModel(self.p4)
+        # self.model.populate("//{0}".format(self.p4.client), findDeleted=True)
+        self.model.populate('//depot', findDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
         self.fileTree.expandAll()
-        self.fileTree.setModel(model)
-
-        for i in range(model.rootrowcount()):
-            idx = model.index(i, 0, model.parent(QtCore.QModelIndex()))
-
-            treeItem = idx.internalPointer()
-
-            model.populateSubDir(idx)
-
-            # test = DepotClientViewModel.TreeItem( ["TEST", "", "", ""], treeItem  )
-            # treeItem.appendChild( test )
+        self.fileTree.setModel(self.model)
 
         self.fileTree.setColumnWidth(0, 220)
         self.fileTree.setColumnWidth(1, 100)
         self.fileTree.setColumnWidth(2, 120)
         self.fileTree.setColumnWidth(3, 60)
 
-        self.fileTree.setModel(model)
-        self.fileTree.setRootIndex(self.fileTreeModel.index(self.p4.cwd))
+        self.fileTree.setModel(self.model)
+        # self.fileTree.setRootIndex(self.model.index(self.p4.cwd))
         self.fileTree.setColumnWidth(0, 180)
 
         headers = ["Revision", "User", "Action",
@@ -162,7 +152,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
         if interop.getCurrentSceneFile():
-            self.fileTree.setCurrentIndex(self.fileTreeModel.index(interop.getCurrentSceneFile()))
+            # self.fileTree.setCurrentIndex(self.fileTreeModel.index(interop.getCurrentSceneFile()))
             self.loadFileLog()
 
     def create_layout(self):
@@ -196,6 +186,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         Create the signal/slot connections
         '''
         self.fileTree.clicked.connect(self.loadFileLog)
+        self.fileTree.expanded.connect(self.onExpandedFolder)
         self.getLatestBtn.clicked.connect(self.onSyncLatest)
         self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
         self.getPreviewBtn.clicked.connect(self.getPreview)
@@ -203,6 +194,22 @@ class FileRevisionUI(QtWidgets.QDialog):
     #--------------------------------------------------------------------------
     # SLOTS
     #--------------------------------------------------------------------------
+    def onExpandedFolder(self, *args):
+        index = args[0]
+
+        treeItem = index.internalPointer()
+
+        Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
+
+        i=0
+        while True:
+            child = index.child(i, 0)
+            if not child.isValid():
+                break
+
+            i += 1
+            self.model.populateSubDir(child)
+
     def getPreview(self, *args):
         index = self.tableWidget.currentRow()
         item = self.fileRevisions[index]
@@ -274,12 +281,15 @@ class FileRevisionUI(QtWidgets.QDialog):
 
     def loadFileLog(self, *args):
         try:
-            index = self.fileTree.selectedIndexes()[0]
-            if not index:
-                return
+            index = self.fileTree.selectedIndexes()
         except IndexError as e:
             Utils.p4Logger().error(e)
+            # return
+            raise
+
+        if not index:
             return
+        index = index[0]
 
         self.statusBar.showMessage("")
 

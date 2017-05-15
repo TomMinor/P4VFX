@@ -50,4 +50,3 @@ class DepotClientViewModelTests(unittest.TestCase):
 
     	for i, item in enumerate(self.rootItem.childItems):
     		self.failUnless(item.data == testDataOut[i])
-

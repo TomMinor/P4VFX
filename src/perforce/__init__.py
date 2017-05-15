@@ -5,7 +5,12 @@ except ImportError as e:
 
 import logging
 # logging.basicConfig(level=logging.INFO)
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+
+logging.basicConfig(
+    format = "%(levelname) -10s %(asctime)s %(module)s:%(lineno)s %(funcName)s %(message)s",
+    level = logging.DEBUG
+)
 
 from PerforceUtils import SetupConnection
 reload(SetupConnection)
