@@ -22,7 +22,6 @@ def importClass(modulePath, className):
 
 
 #============================= Filesystem Procedures ===========================
-
 def removeStudentTag(fileName):
     try:
         with open(fileName, "r") as f:
@@ -173,6 +172,27 @@ def inDirectory(file, directory):
     return (os.path.commonprefix([file, directory]) == directory) or (os.path.abspath(file) == os.path.abspath(directory))
 
 #============================= Perforce Procedures ===========================
+
+def setupConnection(p4):
+    if not p4.connected():
+        p4Logger().info('Connecting to server...')
+        p4.connect()
+
+    try:
+        p4.fetch_client()['Root']
+    except P4Exception as e:
+        p4Logger().info('Attempting to login...')
+        try:
+            from perforce.GUI import LoginWindow
+            LoginWindow.setP4Password(p4)
+        except P4Exception as e:
+            p4Logger().warning('Couldn\'t login to server')
+            raise
+
+    if p4.p4config_file == 'noconfig':
+        Utils.loadP4Config(p4)
+
+    p4Logger().info('Connected to server!')
 
 def loadP4Config(p4):
     # Stupid bug (Windows only I hope)

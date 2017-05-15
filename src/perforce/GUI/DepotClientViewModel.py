@@ -22,20 +22,31 @@ def perforceIsDir(p4path):
         print e
         return False
 
+def fullPath(idx):
+    result = [idx]
+
+    parent = idx.parent()
+    while True:
+        if not parent.isValid():
+            break
+        result.append(parent)
+        parent = parent.parent()
+
+    return list(reversed(result))
 
 def p4Filelist(p4, dir, findDeleted=False):
         p4path = '/'.join([dir, '*'])
         try:
             files = p4.run_filelog("-t", p4path)
         except P4Exception as e:
-            print e
+            # print e
             return []
 
         results = []
 
         for x in files:
             latestRevision = x.revisions[0]
-            print latestRevision.action, latestRevision.depotFile
+            # print latestRevision.action, latestRevision.depotFile
 
             if not findDeleted and latestRevision.action == 'delete':
                 continue
@@ -50,7 +61,7 @@ def p4Filelist(p4, dir, findDeleted=False):
 
         filesInCurrentChange = p4.run_opened(p4path)
         for x in filesInCurrentChange:
-            print x
+            # print x
             results.append({'name': x['clientFile'],
                             'action': x['action'],
                             'change': x['change'],
@@ -187,7 +198,7 @@ class TreeModel(QtCore.QAbstractItemModel):
         for dir in dirs:
             dirName = os.path.basename(dir['dir'])
             subDir = '/'.join( [rootdir, dirName] )
-            data = [dirName, "Folder", "", "", ""]
+            data = [dirName, "Folder", "", "", "", dir['dir']]
 
             treeItem = TreeItem(data, self.rootItem)
             self.rootItem.appendChild(treeItem)
@@ -198,11 +209,60 @@ class TreeModel(QtCore.QAbstractItemModel):
 
             for f in files:
                 fileName = os.path.basename(f['name'])
-                data = [fileName, f['type'], f[
-                    'time'], f['action'], f['change']]
+                # Temporary kludge to pass through the raw path as an extra column that simply isn't used
+                data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
 
                 fileItem = TreeItem(data, treeItem)
                 treeItem.appendChild(fileItem)
+
+    def populateSubDir(self, idx, root="//depot", findDeleted=False):
+        idxPathModel = fullPath(idx)
+        idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
+        idxFullPath = os.path.join(*idxPathSubDirs)
+
+        if not idxFullPath:
+            idxFullPath = "."
+
+        # children = []
+
+        p4path = '/'.join([root, idxFullPath, '*'])
+
+        depotPath = False
+        if "depot" in root:
+            depotPath = True
+
+        if depotPath:
+            p4subdirs = self.p4.run_dirs(p4path)
+        else:
+            p4subdirs = self.p4.run_dirs('-H', p4path)
+
+        p4subdir_names = [child['dir'] for child in p4subdirs]
+
+        treeItem = idx.internalPointer()
+
+        # print idx.child(0,0).data(), p4subidrs
+
+        if not idx.child(0, 0).data() and p4subdirs:
+            # Pop empty "None" child
+            treeItem.popChild()
+
+            for p4child in p4subdir_names:
+                Utils.p4Logger().debug(p4child)
+                data = [os.path.basename(p4child), "Folder", "", "", "", p4child]
+
+                childData = TreeItem(data, treeItem)
+                treeItem.appendChild(childData)
+
+                childData.appendChild(None)
+
+                files = p4Filelist(self.p4, p4child, findDeleted)
+
+                for f in files:
+                    fileName = os.path.basename(f['name'])
+                    data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+
+                    fileData = TreeItem(data, childData)
+                    childData.appendChild(fileData)
 
     # def populate(self, rootdir, findDeleted=False):
     #     rootdir = rootdir.replace('\\', '/')

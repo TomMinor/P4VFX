@@ -1,4 +1,5 @@
 import os
+import sys
 
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
@@ -40,57 +41,6 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.create_layout()
         self.create_connections()
 
-    def populateSubDir(self, idx, root="//depot", findDeleted=False):
-        idxPathModel = fullPath(idx)
-        idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
-        idxFullPath = os.path.join(*idxPathSubDirs)
-
-        if not idxFullPath:
-            idxFullPath = "."
-
-        # children = []
-
-        p4path = '/'.join([root, idxFullPath, '*'])
-
-        depotPath = False
-        if "depot" in root:
-            depotPath = True
-
-        if depotPath:
-            p4subdirs = self.p4.run_dirs(p4path)
-        else:
-            p4subdirs = self.p4.run_dirs('-H', p4path)
-
-        p4subdir_names = [child['dir'] for child in p4subdirs]
-
-        treeItem = idx.internalPointer()
-
-        # print idx.child(0,0).data(), p4subidrs
-
-        if not idx.child(0, 0).data() and p4subdirs:
-            # Pop empty "None" child
-            treeItem.popChild()
-
-            for p4child in p4subdir_names:
-                print p4child
-                data = [os.path.basename(p4child), "Folder", "", "", ""]
-
-                childData = DepotClientViewModel.TreeItem(data, treeItem)
-                treeItem.appendChild(childData)
-
-                childData.appendChild(None)
-
-                files = DepotClientViewModel.p4Filelist(self.p4, p4child, findDeleted)
-
-                for f in files:
-                    fileName = os.path.basename(f['name'])
-                    data = [fileName, f['type'], f[
-                        'time'], f['action'], f['change']]
-
-                    fileData = DepotClientViewModel.TreeItem(data, childData)
-                    childData.appendChild(fileData)
-
-
     def tmp(self, *args):
         idx = args[0]
 
@@ -121,7 +71,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         children = []
 
         p4path = "//{0}/{1}/*".format(self.p4.client, idxFullPath)
-        print p4path
+        Utils.p4Logger().debug(p4path)
         p4children = self.p4.run_dirs("-H", p4path)
         p4children_names = [child['dir'] for child in p4children]
 
@@ -179,7 +129,7 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             treeItem = idx.internalPointer()
 
-            self.populateSubDir(idx)
+            model.populateSubDir(idx)
 
             # test = DepotClientViewModel.TreeItem( ["TEST", "", "", ""], treeItem  )
             # treeItem.appendChild( test )
@@ -189,7 +139,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.fileTree.setColumnWidth(2, 120)
         self.fileTree.setColumnWidth(3, 60)
 
-        # self.fileTree.setModel(self.fileTreeModel)
+        self.fileTree.setModel(model)
         self.fileTree.setRootIndex(self.fileTreeModel.index(self.p4.cwd))
         self.fileTree.setColumnWidth(0, 180)
 
@@ -212,8 +162,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
         if interop.getCurrentSceneFile():
-            self.fileTree.setCurrentIndex(
-                self.fileTreeModel.index(interop.getCurrentSceneFile()))
+            self.fileTree.setCurrentIndex(self.fileTreeModel.index(interop.getCurrentSceneFile()))
             self.loadFileLog()
 
     def create_layout(self):
@@ -306,8 +255,12 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.loadFileLog()
 
     def onSyncLatest(self, *args):
-        index = self.fileTree.selectedIndexes()[0]
-        if not index:
+        try:
+            index = self.fileTree.selectedIndexes()[0]
+            if not index:
+                return
+        except IndexError as e:
+            Utils.p4Logger().info(e)
             return
 
         filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
@@ -320,16 +273,31 @@ class FileRevisionUI(QtWidgets.QDialog):
             displayErrorUI(e)
 
     def loadFileLog(self, *args):
-        index = self.fileTree.selectedIndexes()[0]
-        if not index:
+        try:
+            index = self.fileTree.selectedIndexes()[0]
+            if not index:
+                return
+        except IndexError as e:
+            Utils.p4Logger().error(e)
             return
 
         self.statusBar.showMessage("")
 
-        self.getPreviewBtn.setEnabled(True)
-        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
 
-        if Utils.queryFileExtension(filePath, ['.ma', '.mb']):
+        self.getPreviewBtn.setEnabled(True)
+
+        if not index.internalPointer().data:
+            return
+        
+        try:
+            name, filetype, time, action, change, fullname = index.internalPointer().data
+        except ValueError as e:
+            Utils.p4Logger().info(index.internalPointer().data)
+            raise e
+        # filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        # Utils.p4Logger().debug('Querying history for file %s' % filePath)
+
+        if Utils.queryFileExtension(fullname, interop.getSceneFiles() ):
             # self.getPreviewBtn.setEnabled(True)
             self.getPreviewBtn.setText("Preview Scene Revision")
             self.isSceneFile = True
@@ -338,184 +306,188 @@ class FileRevisionUI(QtWidgets.QDialog):
             self.getPreviewBtn.setText("Preview File Revision")
             self.isSceneFile = False
 
-        if os.path.isdir(filePath):
+        # if os.path.isdir(filePath):
+            # return
+
+        if filetype == 'Folder':
             return
+            # self.populateSubDir(index, fullname, False)
+        else:
+            try:
+                files = self.p4.run_filelog("-l", fullname)
+            except P4Exception as e:
+                # TODO - Better error handling here, what if we can't connect etc
+                #eMsg, type = parsePerforceError(e)
+                self.statusBar.showMessage(
+                    "{0} isn't on client".format(os.path.basename(fullname)))
+                self.tableWidget.clearContents()
+                self.getLatestBtn.setEnabled(False)
+                self.getPreviewBtn.setEnabled(False)
+                return
 
-        try:
-            files = self.p4.run_filelog("-l", filePath)
-        except P4Exception as e:
-            # TODO - Better error handling here, what if we can't connect etc
-            #eMsg, type = parsePerforceError(e)
-            self.statusBar.showMessage(
-                "{0} isn't on client".format(os.path.basename(filePath)))
-            self.tableWidget.clearContents()
-            self.getLatestBtn.setEnabled(False)
-            self.getPreviewBtn.setEnabled(False)
-            return
+            self.getLatestBtn.setEnabled(True)
+            self.getPreviewBtn.setEnabled(True)
 
-        self.getLatestBtn.setEnabled(True)
-        self.getPreviewBtn.setEnabled(True)
+            try:
+                fileInfo = self.p4.run_fstat(fullname)
+                print fileInfo
+                if fileInfo:
+                    if 'otherLock' in fileInfo[0]:
+                        self.statusBar.showMessage("{0} currently locked by {1}".format(
+                            os.path.basename(fullname), fileInfo[0]['otherLock'][0]))
+                        if fileInfo[0]['otherLock'][0].split('@')[0] != self.p4.user:
+                            self.getRevisionBtn.setEnabled(False)
+                    elif 'otherOpen' in fileInfo[0]:
+                        self.statusBar.showMessage("{0} currently opened by {1}".format(
+                            os.path.basename(fullname), fileInfo[0]['otherOpen'][0]))
+                        if fileInfo[0]['otherOpen'][0].split('@')[0] != self.p4.user:
+                            self.getRevisionBtn.setEnabled(False)
+                    else:
+                        self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(
+                            os.path.basename(fullname),  self.p4.user, self.p4.client))
+                        self.getRevisionBtn.setEnabled(True)
 
-        try:
-            fileInfo = self.p4.run_fstat(filePath)
-            print fileInfo
-            if fileInfo:
-                if 'otherLock' in fileInfo[0]:
-                    self.statusBar.showMessage("{0} currently locked by {1}".format(
-                        os.path.basename(filePath), fileInfo[0]['otherLock'][0]))
-                    if fileInfo[0]['otherLock'][0].split('@')[0] != self.p4.user:
-                        self.getRevisionBtn.setEnabled(False)
-                elif 'otherOpen' in fileInfo[0]:
-                    self.statusBar.showMessage("{0} currently opened by {1}".format(
-                        os.path.basename(filePath), fileInfo[0]['otherOpen'][0]))
-                    if fileInfo[0]['otherOpen'][0].split('@')[0] != self.p4.user:
-                        self.getRevisionBtn.setEnabled(False)
-                else:
-                    self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(
-                        os.path.basename(filePath),  self.p4.user, self.p4.client))
-                    self.getRevisionBtn.setEnabled(True)
+            except P4Exception:
+                self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(fullname)))
+                self.getRevisionBtn.setEnabled(True)
 
-        except P4Exception:
-            self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(filePath)))
-            self.getRevisionBtn.setEnabled(True)
+            # Generate revision dictionary
+            self.fileRevisions = []
 
-        # Generate revision dictionary
-        self.fileRevisions = []
+            for revision in files[0].each_revision():
+                self.fileRevisions.append({"revision": revision.rev,
+                                           "action": revision.action,
+                                           "date": revision.time,
+                                           "desc": revision.desc,
+                                           "user": revision.user,
+                                           "client": revision.client
+                                           })
 
-        for revision in files[0].each_revision():
-            self.fileRevisions.append({"revision": revision.rev,
-                                       "action": revision.action,
-                                       "date": revision.time,
-                                       "desc": revision.desc,
-                                       "user": revision.user,
-                                       "client": revision.client
-                                       })
+            self.tableWidget.setRowCount(len(self.fileRevisions))
 
-        self.tableWidget.setRowCount(len(self.fileRevisions))
+            # Populate table
+            for i, revision in enumerate(self.fileRevisions):
+                # Saves us manually keeping track of the current column
+                column = 0
 
-        # Populate table
-        for i, revision in enumerate(self.fileRevisions):
-            # Saves us manually keeping track of the current column
-            column = 0
+                # Fill in the rest of the data
+                change = "#{0}".format(revision['revision'])
 
-            # Fill in the rest of the data
-            change = "#{0}".format(revision['revision'])
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                label = QtWidgets.QLabel(str(change))
 
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout()
-            label = QtWidgets.QLabel(str(change))
+                layout.addWidget(label)
+                layout.setAlignment(QtCore.Qt.AlignCenter)
+                layout.setContentsMargins(0, 0, 0, 0)
+                widget.setLayout(layout)
 
-            layout.addWidget(label)
-            layout.setAlignment(QtCore.Qt.AlignCenter)
-            layout.setContentsMargins(0, 0, 0, 0)
-            widget.setLayout(layout)
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
+                # User
+                user = revision['user']
 
-            # User
-            user = revision['user']
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                label = QtWidgets.QLabel(str(user))
+                label.setStyleSheet("QLabel { border: none } ")
 
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout()
-            label = QtWidgets.QLabel(str(user))
-            label.setStyleSheet("QLabel { border: none } ")
+                layout.addWidget(label)
+                layout.setAlignment(QtCore.Qt.AlignCenter)
+                layout.setContentsMargins(4, 0, 4, 0)
+                widget.setLayout(layout)
 
-            layout.addWidget(label)
-            layout.setAlignment(QtCore.Qt.AlignCenter)
-            layout.setContentsMargins(4, 0, 4, 0)
-            widget.setLayout(layout)
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
-
-            # Action
-            pendingAction = revision['action']
+                # Action
+                pendingAction = revision['action']
 
 
-            path = ""
-            if(pendingAction == "edit"):
-                path = os.path.join(interop.getIconPath(), "File0440.png")
-            elif(pendingAction == "add"):
-                path = os.path.join(interop.getIconPath(), "File0242.png")
-            elif(pendingAction == "delete"):
-                path = os.path.join(interop.getIconPath(), "File0253.png")
+                path = ""
+                if(pendingAction == "edit"):
+                    path = os.path.join(interop.getIconPath(), "File0440.png")
+                elif(pendingAction == "add"):
+                    path = os.path.join(interop.getIconPath(), "File0242.png")
+                elif(pendingAction == "delete"):
+                    path = os.path.join(interop.getIconPath(), "File0253.png")
 
-            widget = QtWidgets.QWidget()
+                widget = QtWidgets.QWidget()
 
-            icon = QtGui.QPixmap(path)
-            icon = icon.scaled(16, 16)
+                icon = QtGui.QPixmap(path)
+                icon = icon.scaled(16, 16)
 
-            iconLabel = QtWidgets.QLabel()
-            iconLabel.setPixmap(icon)
-            textLabel = QtWidgets.QLabel(pendingAction.capitalize())
-            textLabel.setStyleSheet("QLabel { border: none } ")
+                iconLabel = QtWidgets.QLabel()
+                iconLabel.setPixmap(icon)
+                textLabel = QtWidgets.QLabel(pendingAction.capitalize())
+                textLabel.setStyleSheet("QLabel { border: none } ")
 
-            # @TODO Why not move these into a cute little function in a function
+                # @TODO Why not move these into a cute little function in a function
 
-            layout = QtWidgets.QHBoxLayout()
-            layout.addWidget(iconLabel)
-            layout.addWidget(textLabel)
-            layout.setAlignment(QtCore.Qt.AlignLeft)
-            # layout.setContentsMargins(0,0,0,0)
-            widget.setLayout(layout)
+                layout = QtWidgets.QHBoxLayout()
+                layout.addWidget(iconLabel)
+                layout.addWidget(textLabel)
+                layout.setAlignment(QtCore.Qt.AlignLeft)
+                # layout.setContentsMargins(0,0,0,0)
+                widget.setLayout(layout)
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-            # Date
-            date = revision['date']
+                # Date
+                date = revision['date']
 
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout()
-            label = QtWidgets.QLabel(str(date))
-            label.setStyleSheet("QLabel { border: none } ")
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                label = QtWidgets.QLabel(str(date))
+                label.setStyleSheet("QLabel { border: none } ")
 
-            layout.addWidget(label)
-            layout.setAlignment(QtCore.Qt.AlignCenter)
-            layout.setContentsMargins(4, 0, 4, 0)
-            widget.setLayout(layout)
+                layout.addWidget(label)
+                layout.setAlignment(QtCore.Qt.AlignCenter)
+                layout.setContentsMargins(4, 0, 4, 0)
+                widget.setLayout(layout)
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-            # Client
-            client = revision['client']
+                # Client
+                client = revision['client']
 
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout()
-            label = QtWidgets.QLabel(str(client))
-            label.setStyleSheet("QLabel { border: none } ")
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                label = QtWidgets.QLabel(str(client))
+                label.setStyleSheet("QLabel { border: none } ")
 
-            layout.addWidget(label)
-            layout.setAlignment(QtCore.Qt.AlignCenter)
-            layout.setContentsMargins(4, 0, 4, 0)
+                layout.addWidget(label)
+                layout.setAlignment(QtCore.Qt.AlignCenter)
+                layout.setContentsMargins(4, 0, 4, 0)
 
-            widget.setLayout(layout)
+                widget.setLayout(layout)
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-            # Description
-            desc = revision['desc']
+                # Description
+                desc = revision['desc']
 
-            widget = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout()
-            text = QtWidgets.QLineEdit()
-            text.setText(desc)
-            text.setReadOnly(True)
-            text.setAlignment(QtCore.Qt.AlignLeft)
-            text.setStyleSheet("QLineEdit { border: none ")
+                widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout()
+                text = QtWidgets.QLineEdit()
+                text.setText(desc)
+                text.setReadOnly(True)
+                text.setAlignment(QtCore.Qt.AlignLeft)
+                text.setStyleSheet("QLineEdit { border: none ")
 
-            layout.addWidget(text)
-            layout.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
-            layout.setContentsMargins(4, 0, 1, 0)
-            widget.setLayout(layout)
+                layout.addWidget(text)
+                layout.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
+                layout.setContentsMargins(4, 0, 1, 0)
+                widget.setLayout(layout)
 
-            self.tableWidget.setCellWidget(i, column, widget)
-            column += 1
+                self.tableWidget.setCellWidget(i, column, widget)
+                column += 1
 
-        self.tableWidget.resizeColumnsToContents()
-        self.tableWidget.resizeRowsToContents()
-        self.tableWidget.setColumnWidth(4, 90)
-        self.tableWidget.horizontalHeader().setStretchLastSection(True)
+            self.tableWidget.resizeColumnsToContents()
+            self.tableWidget.resizeRowsToContents()
+            self.tableWidget.setColumnWidth(4, 90)
+            self.tableWidget.horizontalHeader().setStretchLastSection(True)

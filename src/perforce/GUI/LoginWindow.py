@@ -3,23 +3,10 @@ import os
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
+import perforce.Utils as Utils
 from ErrorMessageWindow import displayErrorUI
 
-def setupConnection(p4):
-    try:
-        # Can we run commands?
-        p4.run_info()
-    except P4Exception as e:
-        # If not, we might not have logged in yet
-        try:
-            self.firstTimeLogin(p4,
-                                enterUsername=p4.user is None,
-                                enterPassword=True)
-        except P4Exception as e:
-            raise e
-
-
-def firstTimeLogin(self, p4, enterUsername=True, enterPassword=True, parent=None, *args):
+def firstTimeLogin(p4, enterUsername=True, enterPassword=True, parent=None, *args):
     username = None
     password = None
 
@@ -68,3 +55,10 @@ def firstTimeLogin(self, p4, enterUsername=True, enterPassword=True, parent=None
     if username:
         Utils.writeToP4Config(p4.p4config_file,
                               "P4USER", str(username[0]))
+
+def setP4Password(p4):
+    try:
+        firstTimeLogin(p4, enterUsername=p4.user is None, enterPassword=True)
+    except P4Exception as e:
+        raise e
+        

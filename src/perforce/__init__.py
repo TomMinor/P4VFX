@@ -18,21 +18,7 @@ reload(GUI)
 p4 = P4()
 
 def init():
-    try:
-        p4.connect()
-    except P4Exception as e:
-        raise
-
-    try:
-        p4.run('info')
-    except P4Exception as e:
-        try:
-            GUI.LoginWindow.setupConnection(p4)
-        except P4Exception as e:
-            raise
-
-    if p4.p4config_file == 'noconfig':
-        Utils.loadP4Config(p4)
+    Utils.setupConnection(p4)
 
     GUI.initMenu(p4)
 

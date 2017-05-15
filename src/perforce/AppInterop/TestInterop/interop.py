@@ -12,12 +12,6 @@ class TestInterop(BaseInterop):
     def setupTestingEnvironment():
         app = QtWidgets.QApplication([])
 
-        # Pretty dark stylesheet to match literally every CG app ever
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'style.qss')
-        with open(path, 'r') as f:
-            stylesheet = f.read()
-        app.setStyleSheet(stylesheet)
-
         TestInterop.window = QtWidgets.QWidget()
         return TestInterop.window, app
 
@@ -37,11 +31,13 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def getTempPath():
+        import tempfile
         return tempfile.gettempdir()
 
     @staticmethod
     def getCurrentSceneFile():
-        raise NotImplementedError
+        import tempfile
+        return tempfile.TemporaryFile().name
 
     @staticmethod
     def openScene(filePath):
@@ -57,7 +53,7 @@ class TestInterop(BaseInterop):
 
 
     def initializeMenu(self, entries):
-        window = self.main_parent_window()
+        window = TestInterop.window
         vbox = QtWidgets.QVBoxLayout()
         window.setLayout(vbox)
 

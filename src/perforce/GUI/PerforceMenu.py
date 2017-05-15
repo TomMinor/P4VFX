@@ -231,6 +231,7 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected
     # files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
+        print self.p4.cwd
         fileDialog = QtWidgets.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
