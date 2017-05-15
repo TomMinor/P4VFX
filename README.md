@@ -23,8 +23,19 @@ As this was developed for an actual project, various pipeline functions were add
 The installation process is now automated by **install.py**, it will support all out of the box plugins (Maya, Nuke, etc) as they are added. It handles symlinking the module files to the places necessary for each app, and creating/updating P4CONFIG if necessary.
 
 To use it, simply call it like so:
+```python install.py```
+
+Optionally, it can also setup a P4CONFIG (in your home directory by default, but can be overriden)
 ```python install.py --p4port ssl:12.34.567.8:1666```
 
 (For convenience, P4Python is bundled within the repo.)
 
 **Note: The Mac P4Python library isn't bundled within the repo yet, but it is just a case of placing it in appropriate PATH so the application can find it.**
+
+## Configuring
+
+When possible the default Perforce functionality is used for determining the environment.
+
+This typically involves setting a P4CONFIG env var to something like 'p4config', Perforce will then search the current directory and it's parents for the existence of this file. This behaviour allows you to determine which workspace is used depending on where the p4config file is placed, typically in the settings folder for your app of 
+
+
