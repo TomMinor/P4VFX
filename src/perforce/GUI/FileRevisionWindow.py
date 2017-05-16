@@ -117,12 +117,12 @@ class FileRevisionUI(QtWidgets.QDialog):
         # self.fileTreeModel.setRootPath(self.p4.cwd)
 
         self.model = DepotClientViewModel.TreeModel(self.p4)
-        # self.model.populate("//{0}".format(self.p4.client), findDeleted=True)
-        self.model.populate('//depot', findDeleted=True)
+        self.model.populate("//{0}".format(self.p4.client), findDeleted=True)
+        # self.model.populate('//depot', findDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
         self.fileTree.expandAll()
-        self.fileTree.setModel(self.model)
+        # self.fileTree.setModel(self.model)
 
         self.fileTree.setColumnWidth(0, 220)
         self.fileTree.setColumnWidth(1, 100)
@@ -187,9 +187,9 @@ class FileRevisionUI(QtWidgets.QDialog):
         '''
         self.fileTree.clicked.connect(self.loadFileLog)
         self.fileTree.expanded.connect(self.onExpandedFolder)
-        self.getLatestBtn.clicked.connect(self.onSyncLatest)
-        self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
-        self.getPreviewBtn.clicked.connect(self.getPreview)
+        # self.getLatestBtn.clicked.connect(self.onSyncLatest)
+        # self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
+        # self.getPreviewBtn.clicked.connect(self.getPreview)
 
     #--------------------------------------------------------------------------
     # SLOTS
@@ -199,16 +199,21 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         treeItem = index.internalPointer()
 
-        Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
+        # Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
 
         i=0
         while True:
-            child = index.child(i, 0)
+            # child = index.child(i, 0)
+            child = self.model.index(i, 0, index.parent())
             if not child.isValid():
                 break
 
             i += 1
             self.model.populateSubDir(child)
+
+        # Utils.p4Logger().info( self.model.rowCount() )
+        self.fileTree.setModel(self.model)
+        self.model.layoutChanged.emit()
 
     def getPreview(self, *args):
         index = self.tableWidget.currentRow()

@@ -1,4 +1,5 @@
 import os
+import re
 
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets

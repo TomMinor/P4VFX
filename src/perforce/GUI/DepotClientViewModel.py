@@ -96,7 +96,7 @@ class TreeItem(object):
 
         fileItem = TreeItem(data, self)
         self.appendChild(fileItem)
-        self.appendChild(None)
+        fileItem.appendChild(None)
 
 
     def appendChild(self, item):
@@ -225,11 +225,11 @@ class TreeModel(QtCore.QAbstractItemModel):
             for f in files:
                 self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
 
-        for i in range(self.rootrowcount()):
-            idx = self.index(i, 0, self.parent(QtCore.QModelIndex()))
-            treeItem = idx.internalPointer()
+        # for i in range(self.rootrowcount()):
+        #     idx = self.index(i, 0, self.parent(QtCore.QModelIndex()))
+        #     treeItem = idx.internalPointer()
 
-            self.populateSubDir(idx)
+        #     self.populateSubDir(idx)
 
     def populateSubDir(self, idx, root="//depot", findDeleted=False):
         idxPathModel = fullPath(idx)
@@ -254,27 +254,34 @@ class TreeModel(QtCore.QAbstractItemModel):
 
         treeItem = idx.internalPointer()
 
-        if not idx.child(0, 0).data() and p4subdirs:
-            # Pop empty "None" child
-            treeItem.popChild()
+        # if not idx.child(0, 0).data() and p4subdirs:
+        if treeItem and treeItem.childItems:
+            if not treeItem.childItems[0]:
+                Utils.p4Logger().debug('Found uninitialized directory, loading...')
+                # Pop empty "None" child
+                treeItem.popChild()
 
-            for p4child in p4subdir_names:
-                Utils.p4Logger().debug(p4child)
-                data = [os.path.basename(p4child), "Folder", "", "", "", p4child]
+                treeItem.appendFileItem('test.txt', 'txt', '123', 'Add', '0')
 
-                childData = TreeItem(data, treeItem)
-                treeItem.appendChild(childData)
+                treeItem.appendFolderItem('test')
 
-                childData.appendChild(None)
+                # for p4child in p4subdir_names:
+                #     Utils.p4Logger().debug(p4child)
+                #     data = [os.path.basename(p4child), "Folder", "", "", "", p4child]
 
-                files = p4Filelist(self.p4, p4child, findDeleted)
+                #     childData = TreeItem(data, treeItem)
+                #     treeItem.appendChild(childData)
 
-                for f in files:
-                    fileName = os.path.basename(f['name'])
-                    data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+                #     childData.appendChild(None)
 
-                    fileData = TreeItem(data, childData)
-                    childData.appendChild(fileData)
+                #     files = p4Filelist(self.p4, p4child, findDeleted)
+
+                #     for f in files:
+                #         fileName = os.path.basename(f['name'])
+                #         data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
+
+                #         fileData = TreeItem(data, childData)
+                #         childData.appendChild(fileData)
 
     # def populate(self, rootdir, findDeleted=False):
     #     rootdir = rootdir.replace('\\', '/')
@@ -407,3 +414,6 @@ class TreeModel(QtCore.QAbstractItemModel):
         else:
             parentItem = parent.internalPointer()
         return len(parentItem.childItems)
+
+    def emitDataChanged(self, idx):
+        self.dataChanged.emit(idx, idx)
