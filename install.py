@@ -55,15 +55,17 @@ def logSymlink(src, dst):
     if os.path.exists(dst):
         print '%s exists, unlinking...' % dst
         try:
-            os.unlink(dst)
+            if os.path.exists(dst):
+                if os.path.islink(dst):
+                    os.unlink(dst)
+                else:
+                    if os.path.isdir(dst):
+                        os.rmdir(dst)
+                    else:
+                        shutil.rmtree(dst)
         except OSError as e:
-            if platform.system() == 'Windows':
-                try:
-                    os.rmdir(dst)
-                except OSError as e:
-                    print e
-            else:
-                print e
+            print e
+            return
 
     print 'Linking %s to %s...' % (src, dst)
     os.symlink(src, dst)
@@ -194,10 +196,8 @@ def install(args):
     # Setup Maya
     maya_scripts = os.path.join(getMayaPreferences(), 'scripts')
     maya_plugins = os.path.join(getMayaPreferences(), 'plug-ins')
-    maya_plugin_src = os.path.realpath(
-        os.path.join(cwd, 'src/AppPlugins/P4Maya.py'))
-    maya_plugin_dst = os.path.join(
-        maya_plugins, os.path.basename(maya_plugin_src))
+    maya_plugin_src = os.path.realpath(os.path.join(cwd, 'src/AppPlugins/P4Maya.py'))
+    maya_plugin_dst = os.path.join(maya_plugins, os.path.basename(maya_plugin_src))
     install_p4python(maya_scripts)
     install_perforce_module(maya_scripts)
 
