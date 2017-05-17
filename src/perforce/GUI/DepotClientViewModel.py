@@ -4,7 +4,7 @@ from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
 import perforce.Utils as Utils
-
+from perforce.AppInterop import interop
 
 def epochToTimeStr(time):
     import datetime
@@ -359,16 +359,16 @@ class TreeModel(QtCore.QAbstractItemModel):
                 isDeleted = index.internalPointer().data[3] == 'delete'
 
                 if isDeleted:
-                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0104.png")
+                    return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0104.png'))
 
                 if itemType == "Folder":
-                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0059.png")
+                    return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0059.png'))
                 elif "binary" in itemType:
-                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0315.png")
+                    return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0315.png'))
                 elif "text" in itemType:
-                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0027.png")
+                    return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0027.png'))
                 else:
-                    return QtGui.QIcon(r"D:/MayaPerforce/Perforce/images/File0106.png")
+                    return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0106.png'))
 
                 icon = QtGui.QFileIconProvider(QtGui.QFileIconProvider.Folder)
                 return icon
