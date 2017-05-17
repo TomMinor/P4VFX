@@ -39,7 +39,7 @@ def p4Filelist(p4, dir, findDeleted=False):
         try:
             files = p4.run_filelog("-t", p4path)
         except P4Exception as e:
-            # print e
+            Utils.p4Logger().debug(e.msg)
             return []
 
         results = []
