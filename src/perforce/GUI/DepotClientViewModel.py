@@ -202,7 +202,7 @@ class TreeModel(QtCore.QAbstractItemModel):
 
     
 
-    def populate(self, rootdir="//depot", findDeleted=False):
+    def populate(self, rootdir, findDeleted=False):
         self.rootItem = TreeItem(None)
         self.showDeleted = findDeleted
 
@@ -215,15 +215,17 @@ class TreeModel(QtCore.QAbstractItemModel):
         else:
             dirs = self.p4.run_dirs('-H', p4path)
 
-        for dir in dirs:
-            dirName = os.path.basename(dir['dir'])
-            subDir = '/'.join( [rootdir, dirName] )
-            self.rootItem.appendFolderItem(dir['dir'])
+        self.populateSubDir()
 
-            files = p4Filelist(self.p4, dir['dir'], findDeleted)
+        # for dir in dirs:
+        #     # dirName = os.path.basename(dir['dir'])
+        #     # subDir = '/'.join( [rootdir, dirName] )
+        #     self.rootItem.appendFolderItem(dir['dir'])
 
-            for f in files:
-                self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
+        #     files = p4Filelist(self.p4, dir['dir'], findDeleted)
+
+        #     for f in files:
+        #         self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
 
         # for i in range(self.rootrowcount()):
         #     idx = self.index(i, 0, self.parent(QtCore.QModelIndex()))
@@ -231,57 +233,62 @@ class TreeModel(QtCore.QAbstractItemModel):
 
         #     self.populateSubDir(idx)
 
-    def populateSubDir(self, idx, root="//depot", findDeleted=False):
-        idxPathModel = fullPath(idx)
-        idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
-        idxFullPath = os.path.join(*idxPathSubDirs)
+    def populateSubDir(self, idx=None, root="//depot", findDeleted=False):
+        # Overcomplicated way to figure out if idx is root or not
+        # Would be better to check if .parent() and if not return the root path
+        if idx:
+            idxPathModel = fullPath(idx)
+            idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
+            idxFullPath = '/'.join(idxPathSubDirs)
 
-        if not idxFullPath:
-            idxFullPath = "."
+            if not idxFullPath:
+                idxFullPath = "."
 
-        p4path = '/'.join([root, idxFullPath, '*'])
+            p4path = '/'.join([root, idxFullPath])
 
-        depotPath = False
-        if "depot" in root:
-            depotPath = True
+            treeItem = idx.internalPointer()
 
-        if depotPath:
-            p4subdirs = self.p4.run_dirs(p4path)
+            # Pop empty "None" child
+            treeItem.popChild()
         else:
-            p4subdirs = self.p4.run_dirs('-H', p4path)
+            p4path = '/'.join([root])
 
-        p4subdir_names = [child['dir'] for child in p4subdirs]
+            treeItem = self.rootItem
 
-        treeItem = idx.internalPointer()
+        depotPath = "depot" in root
 
-        # if not idx.child(0, 0).data() and p4subdirs:
-        if treeItem and treeItem.childItems:
-            if not treeItem.childItems[0]:
-                Utils.p4Logger().debug('Found uninitialized directory, loading...')
-                # Pop empty "None" child
-                treeItem.popChild()
+        dirpath = '/'.join([p4path,'*'])
 
-                treeItem.appendFileItem('test.txt', 'txt', '123', 'Add', '0')
+        self.p4.exception_level = 1
+        if depotPath:
+            p4subdirs = self.p4.run_dirs(dirpath)
+        else:
+            p4subdirs = self.p4.run_dirs('-H', dirpath)
 
-                treeItem.appendFolderItem('test')
 
-                # for p4child in p4subdir_names:
-                #     Utils.p4Logger().debug(p4child)
-                #     data = [os.path.basename(p4child), "Folder", "", "", "", p4child]
+        p4subdirs = [child['dir'] for child in p4subdirs]
+        Utils.p4Logger().debug('p4.run_dirs(%s) = %s' % (p4path, p4subdirs) )
 
-                #     childData = TreeItem(data, treeItem)
-                #     treeItem.appendChild(childData)
+        for p4child in p4subdirs:
+            Utils.p4Logger().debug(p4child)
+            treeItem.appendFolderItem(p4child)
 
-                #     childData.appendChild(None)
+        p4subfiles = self.p4.run_fstat(dirpath)
+        Utils.p4Logger().debug('p4FileList = %s' % p4subfiles )
 
-                #     files = p4Filelist(self.p4, p4child, findDeleted)
+        for f in p4subfiles:
+            fullpath = f['depotFile' if depotPath else 'clientFile']
+            action = f['headAction']
+            change = f['haveRev']
+            time = f['headTime']
+            filetype = f['headType']
+            treeItem.appendFileItem( fullpath, filetype, time, action, action )
+            # fileName = os.path.basename(f['name'])
+            # data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
 
-                #     for f in files:
-                #         fileName = os.path.basename(f['name'])
-                #         data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
-
-                #         fileData = TreeItem(data, childData)
-                #         childData.appendChild(fileData)
+            # fileData = TreeItem(data, childData)
+            # childData.appendChild(fileData)
+        Utils.p4Logger().debug('\n\n')
 
     # def populate(self, rootdir, findDeleted=False):
     #     rootdir = rootdir.replace('\\', '/')

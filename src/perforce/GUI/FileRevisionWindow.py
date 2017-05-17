@@ -116,8 +116,10 @@ class FileRevisionUI(QtWidgets.QDialog):
         # self.fileTreeModel = QtWidgets.QFileSystemModel()
         # self.fileTreeModel.setRootPath(self.p4.cwd)
 
+        # self.root = "//{0}".format(self.p4.client)
+        self.root = "//depot"
         self.model = DepotClientViewModel.TreeModel(self.p4)
-        self.model.populate("//{0}".format(self.p4.client), findDeleted=True)
+        self.model.populate(self.root, findDeleted=False)
         # self.model.populate('//depot', findDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
@@ -199,17 +201,22 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         treeItem = index.internalPointer()
 
-        # Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
+        Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
 
-        i=0
-        while True:
-            # child = index.child(i, 0)
-            child = self.model.index(i, 0, index.parent())
-            if not child.isValid():
-                break
+        if not index.child(0,0).isValid():
+            Utils.p4Logger().warning('\tLoading empty directory')
+            self.model.populateSubDir(index, self.root)
 
-            i += 1
-            self.model.populateSubDir(child)
+
+        # i=0
+        # while True:
+        #     child = index.child(i, 0)
+        #     # child = self.model.index(i, 0, index.parent())
+        #     if not child.isValid():
+        #         break
+
+        #     i += 1
+        #     self.model.populateSubDir(child, self.root)
 
         # Utils.p4Logger().info( self.model.rowCount() )
         self.fileTree.setModel(self.model)
