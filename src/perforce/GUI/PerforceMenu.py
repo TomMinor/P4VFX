@@ -20,26 +20,12 @@ from Qt import QtCore, QtGui, QtWidgets
 class MainShelf:
 
     def __init__(self, p4):
+        self.p4 = p4
         self.deleteUI = None
         self.submitUI = None
-        # self.perforceMenu = ""
-
-        self.p4 = p4
-
-        # @ToDo move this somewhere more logical
-        # Validate workspace
-        # try:
-        #     p4.cwd = p4.run_info()[0]['clientRoot']
-        # except P4Exception as e:
-        #     displayErrorUI(e)
-        # except KeyError as e:
-        #     print "No workspace found, creating default one"
-        #     try:
-        #         self.createWorkspace()
-        #     except P4Exception as e:
-        #         Utils.p4Logger().warning(e)
 
     def close(self):
+        # @ToDo this stll seems to be maya specific
         try:
             self.revisionUi.deleteLater()
         except Exception as e:
@@ -70,56 +56,60 @@ class MainShelf:
         except Exception as e:
             print "Error disconnecting P4 daemon : ", e
 
+    def validateConnected(self, function, *args):
+        if not self.p4.connected():
+            QtWidgets.QMessageBox.critical(None, 'Perforce Error', "Not connected to Perforce server, please connect first.", QtGui.QMessageBox.Warning)
+        else:
+            function(args)
+
     def addMenu(self):
         try:
             interop.closeWindow(self.perforceMenu)
         except:
             pass
 
-        # %TODO Hard coded icons are bad?
+        # @ToDo Hard coded icons are bad?
 
         menuEntries = [
             {'label': "Client Commands",            'divider': True},
-            {'label': "Checkout File(s)",           'image': os.path.join(interop.getIconPath(), "File0078.png"), 'command': self.checkoutFile},
-            {'label': "Checkout Folder",            'image': os.path.join(interop.getIconPath(), "File0186.png"), 'command': self.checkoutFolder},
-            {'label': "Mark for Delete",            'image': os.path.join(interop.getIconPath(), "File0253.png"), 'command': self.deleteFile},
-            {'label': "Show Changelist",            'image': os.path.join(interop.getIconPath(), "File0252.png"), 'command': self.queryOpened},
+            {'label': "Checkout File(s)",           'image': os.path.join(interop.getIconPath(), "File0078.png"), 'command': lambda args: self.validateConnected(self.checkoutFile, args)},
+            {'label': "Checkout Folder",            'image': os.path.join(interop.getIconPath(), "File0186.png"), 'command': lambda args: self.validateConnected(self.checkoutFolder, args)},
+            {'label': "Mark for Delete",            'image': os.path.join(interop.getIconPath(), "File0253.png"), 'command': lambda args: self.validateConnected(self.deleteFile, args)},
+            {'label': "Show Changelist",            'image': os.path.join(interop.getIconPath(), "File0252.png"), 'command': lambda args: self.validateConnected(self.queryOpened, args)},
             {'label': "Depot Commands",             'divider': True},
-            {'label': "Submit Change",              'image': os.path.join(interop.getIconPath(), "File0107.png"), 'command': self.submitChange},
-            {'label': "Sync All",                   'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': self.syncAllChanged},
-            {'label': "Sync All - Force",           'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': self.syncAll},
-            # {'label': "Sync All References",        'image': os.path.join(interop.getIconPath(), "File0320.png"), 'command': self.syncAllChanged},
+            {'label': "Submit Change",              'image': os.path.join(interop.getIconPath(), "File0107.png"), 'command': lambda args: self.validateConnected(self.submitChange, args)},
+            {'label': "Sync All",                   'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': lambda args: self.validateConnected(self.syncAllChanged, args)},
+            {'label': "Sync All - Force",           'image': os.path.join(interop.getIconPath(), "File0175.png"), 'command': lambda args: self.validateConnected(self.syncAll, args)},
+            # {'label': "Sync All References",        'image': os.path.join(interop.getIconPath(), "File0320.png"), 'command': lambda args: self.validateConnected(self.syncAllChanged, args)},
             #{'label': "Get Latest Scene",          'image': os.path.join(interop.getIconPath(), "File0275.png"), command = self.syncFile},
-            {'label': "Show Depot History",         'image': os.path.join(interop.getIconPath(), "File0279.png"), 'command': self.fileRevisions},
+            {'label': "Show Depot History",         'image': os.path.join(interop.getIconPath(), "File0279.png"), 'command': lambda args: self.validateConnected(self.fileRevisions, args)},
 
             {'label': "Scene",                      'divider': True},
-            {'label': "File Status",                'image': os.path.join(interop.getIconPath(), "File0409.png"), 'command': self.querySceneStatus},
+            {'label': "File Status",                'image': os.path.join(interop.getIconPath(), "File0409.png"), 'command': lambda args: self.validateConnected(self.querySceneStatus, args)},
 
             {'label': "Utility",                    'divider': True},
-            {'label': "Create Asset",               'image': os.path.join(interop.getIconPath(), "File0352.png"), 'command': self.createAsset},
-            {'label': "Create Shot",                'image': os.path.join(interop.getIconPath(), "File0104.png"), 'command': self.createShot},
+            {'label': "Create Asset",               'image': os.path.join(interop.getIconPath(), "File0352.png"), 'command': lambda args: self.validateConnected(self.createAsset, args)},
+            {'label': "Create Shot",                'image': os.path.join(interop.getIconPath(), "File0104.png"), 'command': lambda args: self.validateConnected(self.createShot, args)},
             # Submenu
             {
                 'label': "Miscellaneous",           'image': os.path.join(interop.getIconPath(), "File0411.png"), 'entries': [
                     {'label': "Server",                     'divider': True},
-                    {'label': "Login as user",              'image': os.path.join(interop.getIconPath(), "File0077.png"),    'command': self.loginAsUser},
-                    {'label': "Server Info",                'image': os.path.join(interop.getIconPath(), "File0031.png"),    'command': self.queryServerStatus},
+                    {'label': "Login as user",              'image': os.path.join(interop.getIconPath(), "File0077.png"),    'command': lambda args: self.validateConnected(self.loginAsUser, args)},
+                    {'label': "Server Info",                'image': os.path.join(interop.getIconPath(), "File0031.png"),    'command': lambda args: self.validateConnected(self.queryServerStatus, args)},
                     {'label': "Workspace",                  'divider': True},
-                    {'label': "Create Workspace",           'image': os.path.join(interop.getIconPath(), "File0238.png"),    'command': self.createWorkspace},
-                    {'label': "Set Current Workspace",      'image': os.path.join(interop.getIconPath(), "File0044.png"),    'command': self.setCurrentWorkspace},
+                    {'label': "Create Workspace",           'image': os.path.join(interop.getIconPath(), "File0238.png"),    'command': lambda args: self.validateConnected(self.createWorkspace, args)},
+                    {'label': "Set Current Workspace",      'image': os.path.join(interop.getIconPath(), "File0044.png"),    'command': lambda args: self.validateConnected(self.setCurrentWorkspace, args)},
                     {'label': "Debug",                      'divider': True},
-                    {'label': "Delete all pending changes", 'image': os.path.join(interop.getIconPath(), "File0280.png"),    'command': self.deletePending}
+                    {'label': "Delete all pending changes", 'image': os.path.join(interop.getIconPath(), "File0280.png"),    'command': lambda args: self.validateConnected(self.deletePendin, args)g}
                 ]
-            }
+            },
+            {'label': "Connect to server",          'image': os.path.join(interop.getIconPath(), "File0077.png"),    'command': lambda args: self.validateConnected(self.connectToServer, args)},
         ]
 
         self.menu = interop.createMenu(menuEntries)
 
     def removeMenu(self):
         interop.removeMenu(self.menu)
-
-    def changePasswd(self, *args):
-        return NotImplementedError("Use p4 passwd")
 
     def createShot(self, *args):
         shotNameDialog = QtWidgets.QInputDialog
@@ -172,6 +162,9 @@ class MainShelf:
             assetName[0], self.p4.cwd))
         dir = Utils.createAssetFolders(self.p4.cwd, assetName[0])
         self.run_checkoutFolder(None, dir)
+
+    def connectToServer(self, *args):
+        SetupConnection.connect(self.p4)
 
     def loginAsUser(self, *args):
         LoginWindow.firstTimeLogin(enterUsername=True, enterPassword=True)
@@ -537,6 +530,3 @@ class MainShelf:
             Utils.p4Logger().info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
-
-    def onFirstOpen(self, *args):
-        SetupConnection.connect(p4)
