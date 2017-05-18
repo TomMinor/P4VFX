@@ -23,8 +23,6 @@ reload(GUI)
 p4 = P4()
 
 def init():
-    SetupConnection.connect(p4)
-
     GUI.initMenu(p4)
 
 def close():

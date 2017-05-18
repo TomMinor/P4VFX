@@ -6,7 +6,7 @@ from perforce.Utils import p4Logger
 
 def connect(p4):
     if not p4.connected():
-        p4Logger().info('Connecting to server...')
+        p4Logger().info('Connecting to server... %s' % p4.port)
         p4.connect()
 
     try:

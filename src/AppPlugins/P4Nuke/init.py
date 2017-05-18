@@ -1,10 +1,4 @@
-import sys
-import os
 import nuke
 
-# sys.path.insert(0, os.path.abspath('.'))
-
-for p in sys.path:
-	nuke.tprint(p)
-
-import perforce
+# Nuke isn't happy loading icons as absolute paths, so add it to plugin paths here
+nuke.pluginAddPath( './perforce/images' )

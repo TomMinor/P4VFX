@@ -5,7 +5,8 @@ import re
 
 from P4 import P4, P4Exception
 
-import perforce.Utils as Utils
+from perforce import Utils
+from perforce.PerforceUtils import SetupConnection
 from perforce.AppInterop import interop
 
 from LoginWindow import firstTimeLogin
@@ -536,3 +537,6 @@ class MainShelf:
             Utils.p4Logger().info("Got latest revisions for client")
         except P4Exception as e:
             displayErrorUI(e)
+
+    def onFirstOpen(self, *args):
+        SetupConnection.connect(p4)
