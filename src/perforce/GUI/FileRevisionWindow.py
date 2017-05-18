@@ -56,7 +56,7 @@ class FileRevisionUI(QtWidgets.QDialog):
             children.append(child)
             i += 1
 
-            self.populateSubDir(child, findDeleted=False)
+            self.populateSubDir(child, showDeleted=False)
 
         return
 
@@ -78,7 +78,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if idx.child(0, 0).data() == "TMP":
             for p4child in p4children_names:
                 data = [p4child, "", "", ""]
-                childData = DepotClientViewModel.TreeItem(data, idx)
+                childData = DepotClientViewModel.PerforceItem(data, idx)
                 treeItem.appendChild(childData)
 
         i = 0
@@ -94,10 +94,10 @@ class FileRevisionUI(QtWidgets.QDialog):
             childIdx = child.internalPointer()
 
             data = ["TEST", "TEST", "TEST", "TEST"]
-            childDir = DepotClientViewModel.TreeItem(data, childIdx)
+            childDir = DepotClientViewModel.PerforceItem(data, childIdx)
             childIdx.appendChild(childDir)
 
-            tmpDir = DepotClientViewModel.TreeItem(["TMP", "", "", "", ""], childDir)
+            tmpDir = DepotClientViewModel.PerforceItem(["TMP", "", "", "", ""], childDir)
             childDir.appendChild(tmpDir)
 
         # view.setModel(model)
@@ -113,14 +113,14 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
-        # self.fileTreeModel = QtWidgets.QFileSystemModel()
-        # self.fileTreeModel.setRootPath(self.p4.cwd)
+        # self.filePerforceItemModel = QtWidgets.QFileSystemModel()
+        # self.filePerforceItemModel.setRootPath(self.p4.cwd)
 
         # self.root = "//{0}".format(self.p4.client)
         self.root = "//depot"
-        self.model = DepotClientViewModel.TreeModel(self.p4)
-        self.model.populate(self.root, findDeleted=False)
-        # self.model.populate('//depot', findDeleted=True)
+        self.model = DepotClientViewModel.PerforceItemModel(self.p4)
+        self.model.populate(self.root, showDeleted=False)
+        # self.model.populate('//depot', showDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
         self.fileTree.expandAll()
@@ -154,7 +154,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
         if interop.getCurrentSceneFile():
-            # self.fileTree.setCurrentIndex(self.fileTreeModel.index(interop.getCurrentSceneFile()))
+            # self.fileTree.setCurrentIndex(self.filePerforceItemModel.index(interop.getCurrentSceneFile()))
             self.loadFileLog()
 
     def create_layout(self):
@@ -231,7 +231,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if not index:
             return
 
-        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
         fileName = os.path.basename(filePath)
 
         path = os.path.join(tempPath, fileName)
@@ -263,7 +263,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if not index:
             return
 
-        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
 
         desc = "Rollback #{0} to #{1}".format(
             currentRevision, rollbackRevision)
@@ -282,7 +282,7 @@ class FileRevisionUI(QtWidgets.QDialog):
             Utils.p4Logger().info(e)
             return
 
-        filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
 
         try:
             self.p4.run_sync("-f", filePath)
@@ -316,7 +316,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         except ValueError as e:
             Utils.p4Logger().info(index.internalPointer().data)
             raise e
-        # filePath = self.fileTreeModel.fileInfo(index).absoluteFilePath()
+        # filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
         # Utils.p4Logger().debug('Querying history for file %s' % filePath)
 
         if Utils.queryFileExtension(fullname, interop.getSceneFiles() ):

@@ -38,7 +38,10 @@ def displayMenuItem(ui, args):
 
     for arg in args:
         if arg in menuEntries:
-            menuEntries[arg]()
+            try:
+                menuEntries[arg]()
+            except Exception as e:
+                raise
         else:
             p4Logger().warning('%s isn\'t a key in the menu item dict' % arg)
 

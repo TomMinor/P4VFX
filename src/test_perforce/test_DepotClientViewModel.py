@@ -11,7 +11,7 @@ class DepotClientViewModelTests(unittest.TestCase):
     def setUp(self):
         logging.basicConfig(level=logging.DEBUG)
 
-        self.rootItem = DepotClientViewModel.TreeItem(None)
+        self.rootItem = DepotClientViewModel.PerforceItem(None)
 
     def testAddFileItem(self):
     	testDataIn = [

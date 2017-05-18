@@ -34,45 +34,7 @@ def fullPath(idx):
 
     return list(reversed(result))
 
-def p4Filelist(p4, dir, findDeleted=False):
-        p4path = '/'.join([dir, '*'])
-        try:
-            files = p4.run_filelog("-t", p4path)
-        except P4Exception as e:
-            Utils.p4Logger().debug(e.msg)
-            return []
-
-        results = []
-
-        for x in files:
-            latestRevision = x.revisions[0]
-            # print latestRevision.action, latestRevision.depotFile
-
-            if not findDeleted and latestRevision.action == 'delete':
-                continue
-            else:
-                results.append({'name': latestRevision.depotFile,
-                                'action': latestRevision.action,
-                                'change': latestRevision.change,
-                                'time': latestRevision.time,
-                                'type': latestRevision.type
-                                }
-                               )
-
-        filesInCurrentChange = p4.run_opened(p4path)
-        for x in filesInCurrentChange:
-            # print x
-            results.append({'name': x['clientFile'],
-                            'action': x['action'],
-                            'change': x['change'],
-                            'time': "",
-                            'type': x['type']
-                            }
-                           )
-
-        return results
-
-class TreeItem(object):
+class PerforceItem(object):
 
     def __init__(self, data, parent=None):
         self.parentItem = parent
@@ -85,7 +47,7 @@ class TreeItem(object):
         # Kludge to pass through the raw path as an extra column that simply isn't used
         data = (fileName, filetype, time, action, change, filepath)
 
-        fileItem = TreeItem(data, self)
+        fileItem = PerforceItem(data, self)
         self.appendChild(fileItem)
 
     def appendFolderItem(self, dirpath):
@@ -94,7 +56,7 @@ class TreeItem(object):
         # Kludge to pass through the raw path as an extra column that simply isn't used
         data = (dirName, 'Folder', '', '', '', dirpath)
 
-        fileItem = TreeItem(data, self)
+        fileItem = PerforceItem(data, self)
         self.appendChild(fileItem)
         fileItem.appendChild(None)
 
@@ -111,13 +73,13 @@ class TreeItem(object):
             return self.parentItem.childItems.index(self)
         return 0
 
-class TreeModel(QtCore.QAbstractItemModel):
+class PerforceItemModel(QtCore.QAbstractItemModel):
 
     def __init__(self, p4, parent=None):
-        super(TreeModel, self).__init__(parent)
+        super(PerforceItemModel, self).__init__(parent)
 
         self.p4 = p4
-        self.rootItem = TreeItem(None)
+        self.rootItem = PerforceItem(None)
         self.showDeleted = False
 
     
@@ -202,9 +164,9 @@ class TreeModel(QtCore.QAbstractItemModel):
 
     
 
-    def populate(self, rootdir, findDeleted=False):
-        self.rootItem = TreeItem(None)
-        self.showDeleted = findDeleted
+    def populate(self, rootdir, showDeleted=False):
+        self.rootItem = PerforceItem(None)
+        self.showDeleted = showDeleted
 
         depotPath = "//depot" in rootdir
 
@@ -222,7 +184,7 @@ class TreeModel(QtCore.QAbstractItemModel):
         #     # subDir = '/'.join( [rootdir, dirName] )
         #     self.rootItem.appendFolderItem(dir['dir'])
 
-        #     files = p4Filelist(self.p4, dir['dir'], findDeleted)
+        #     files = p4Filelist(self.p4, dir['dir'], showDeleted)
 
         #     for f in files:
         #         self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
@@ -233,7 +195,7 @@ class TreeModel(QtCore.QAbstractItemModel):
 
         #     self.populateSubDir(idx)
 
-    def populateSubDir(self, idx=None, root="//depot", findDeleted=False):
+    def populateSubDir(self, idx=None, root="//depot", showDeleted=False):
         # Overcomplicated way to figure out if idx is root or not
         # Would be better to check if .parent() and if not return the root path
         if idx:
@@ -255,91 +217,65 @@ class TreeModel(QtCore.QAbstractItemModel):
 
             treeItem = self.rootItem
 
-        depotPath = "depot" in root
+        isDepotPath = "depot" in root
 
         dirpath = '/'.join([p4path,'*'])
 
-        self.p4.exception_level = 1
-        if depotPath:
-            p4subdirs = self.p4.run_dirs(dirpath)
-        else:
-            p4subdirs = self.p4.run_dirs('-H', dirpath)
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
+            args = [dirpath]
+            if isDepotPath:
+                args.insert(0, '-H')
+            p4subdirs = [childDir['dir'] for childDir in self.p4.run_dirs(*args)]
+
+            # Add the sub directories first
+            Utils.p4Logger().debug('p4.run_dirs(%s) =' % (p4path) )
+            for childDir in p4subdirs:
+                Utils.p4Logger().debug('\t%s' % childDir )
+                treeItem.appendFolderItem(childDir)
 
 
-        p4subdirs = [child['dir'] for child in p4subdirs]
-        Utils.p4Logger().debug('p4.run_dirs(%s) = %s' % (p4path, p4subdirs) )
+            p4subfiles = self.p4Filelist(dirpath)
+            Utils.p4Logger().debug('p4FileList(%s) = ' % dirpath)
+            for f in p4subfiles:
+                Utils.p4Logger().debug('\t%s' % f)
+                treeItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
 
-        for p4child in p4subdirs:
-            Utils.p4Logger().debug(p4child)
-            treeItem.appendFolderItem(p4child)
-
-        p4subfiles = self.p4.run_fstat(dirpath)
-        Utils.p4Logger().debug('p4FileList = %s' % p4subfiles )
-
-        for f in p4subfiles:
-            fullpath = f['depotFile' if depotPath else 'clientFile']
-            action = f['headAction']
-            change = f['haveRev']
-            time = f['headTime']
-            filetype = f['headType']
-            treeItem.appendFileItem( fullpath, filetype, time, action, action )
-            # fileName = os.path.basename(f['name'])
-            # data = [fileName, f['type'], f['time'], f['action'], f['change'], f['name']]
-
-            # fileData = TreeItem(data, childData)
-            # childData.appendChild(fileData)
         Utils.p4Logger().debug('\n\n')
 
-    # def populate(self, rootdir, findDeleted=False):
-    #     rootdir = rootdir.replace('\\', '/')
+    def p4Filelist(self, path):
+        results = []
+    
+        # Query existing files in the depot/workspace
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
+            files = self.p4.run_filelog("-t", path)
 
-    #     print "Scanning subfolders in {0}...".format(rootdir)
+            for x in files:
+                latestRevision = x.revisions[0]
 
-    #     import maya.cmds as cmds
-    #     cmds.refresh()
+                if not self.showDeleted and latestRevision.action == 'delete':
+                    continue
+                else:
+                    results.append({'name': latestRevision.depotFile,
+                                    'action': latestRevision.action,
+                                    'change': latestRevision.change,
+                                    'time': str(latestRevision.time),
+                                    'type': latestRevision.type
+                                    }
+                                   )
 
-    #     def scanDirectoryPerforce(root, treeItem):
-    #         change = p4.run_opened()
+        # Query files only existing in pending changelists
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
+            filesInCurrentChange = self.p4.run_opened(path)
+            for x in filesInCurrentChange:
+                results.append({'name': x['clientFile'],
+                                'action': x['action'],
+                                'change': x['change'],
+                                'time': "",
+                                'type': x['type']
+                                }
+                               )
 
-    #         for item in perforceListDir(root):
-    #             itemPath = "{0}/{1}".format(root, item['name'] ) # os.path.join(root, item)
-    #             # print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+'
-    #             # if perforceIsDir(itemPath) else '-', item['name'] )
-    #             data = [ item['name'], item['type'], item['time'], item['change'] ]
-
-    #             childDir = TreeItem( data, treeItem)
-    #             treeItem.appendChild( childDir )
-
-    #             tmpDir = TreeItem( [ "TMP", "", "", "" ], childDir )
-    #             childDir.appendChild( None )
-
-    #             print itemPath, perforceIsDir( itemPath )
-    #             if perforceIsDir( itemPath ):
-    #                 scanDirectoryPerforce(itemPath, childDir)
-
-    #     def scanDirectory(root, treeItem):
-    #         for item in os.listdir(root):
-    #             itemPath = os.path.join(root, item)
-    #             # print "{0}{1}{2}".format( "".join(["\t" for i in range(depth)]), '+' if os.path.isdir(itemPath) else '-', item)
-    #             childDir = TreeItem( [item], treeItem)
-    #             treeItem.appendChild( childDir )
-    #             if os.path.isdir( itemPath ):
-    #                 scanDirectory(itemPath, childDir)
-
-    #     scanDirectoryPerforce(rootdir, self.rootItem )
-
-    #     print dirName
-    #     directory = "{0}:{1}".format(i, os.path.basename(dirName))
-    #     childDir = TreeItem( [directory], self.rootItem)
-    #     self.rootItem.appendChild( childDir )
-
-    #     for fname in fileList:
-    #        childFile = TreeItem(fname, childDir)
-    #        childDir.appendChild([childFile])
-
-    #     for i,c  in enumerate("abcdefg"):
-    #         child = TreeItem([i],self.rootItem)
-    #         self.rootItem.appendChild(child)
+        return results
 
     def columnCount(self, parent):
         return 5
@@ -361,6 +297,7 @@ class TreeModel(QtCore.QAbstractItemModel):
                 if isDeleted:
                     return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0104.png'))
 
+                # Try to figure out which icon is most applicable to the item
                 if itemType == "Folder":
                     return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0059.png'))
                 elif "binary" in itemType:
@@ -369,9 +306,6 @@ class TreeModel(QtCore.QAbstractItemModel):
                     return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0027.png'))
                 else:
                     return QtGui.QIcon(os.path.join(interop.getIconPath(), 'File0106.png'))
-
-                icon = QtGui.QFileIconProvider(QtGui.QFileIconProvider.Folder)
-                return icon
             else:
                 return None
 
@@ -421,6 +355,3 @@ class TreeModel(QtCore.QAbstractItemModel):
         else:
             parentItem = parent.internalPointer()
         return len(parentItem.childItems)
-
-    def emitDataChanged(self, idx):
-        self.dataChanged.emit(idx, idx)
