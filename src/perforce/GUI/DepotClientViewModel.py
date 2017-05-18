@@ -168,32 +168,7 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
         self.rootItem = PerforceItem(None)
         self.showDeleted = showDeleted
 
-        depotPath = "//depot" in rootdir
-
-        p4path = '/'.join([rootdir, '*'])
-
-        if depotPath:
-            dirs = self.p4.run_dirs(p4path)
-        else:
-            dirs = self.p4.run_dirs('-H', p4path)
-
         self.populateSubDir()
-
-        # for dir in dirs:
-        #     # dirName = os.path.basename(dir['dir'])
-        #     # subDir = '/'.join( [rootdir, dirName] )
-        #     self.rootItem.appendFolderItem(dir['dir'])
-
-        #     files = p4Filelist(self.p4, dir['dir'], showDeleted)
-
-        #     for f in files:
-        #         self.rootItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
-
-        # for i in range(self.rootrowcount()):
-        #     idx = self.index(i, 0, self.parent(QtCore.QModelIndex()))
-        #     treeItem = idx.internalPointer()
-
-        #     self.populateSubDir(idx)
 
     def populateSubDir(self, idx=None, root="//depot", showDeleted=False):
         # Overcomplicated way to figure out if idx is root or not

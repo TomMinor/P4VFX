@@ -5,41 +5,112 @@ import shutil
 import argparse
 
 
-def getMayaPreferences():
-    """
-        This returns the non-versioned Maya path, as we should be fairly version agnostic and work with any Maya
-    """
-    if os.environ.get('MAYA_APP_DIR'):
-        maya_app_dir = os.environ['MAYA_APP_DIR']
-        return maya_app_dir
+class App(object):
+    def __init__(self):
+        self.cwd = os.path.dirname(os.path.realpath(__file__))
 
-    if platform.system() == 'Windows':
-        if os.environ.get('HOME'):
-            home = os.environ['HOME']
+    def getPreferences(self):
+        pass
+
+    def install(self):
+        pass
+
+    def install_p4python(self, dest):
+        # @ToDo set this up to sort out the /Maya, /Nuke subfolders under apidir
+
+        if not os.path.exists(dest):
+            os.makedirs(dest)
+
+        apiplatform = platform.system().lower()
+        apidir = os.path.join(self.cwd, os.path.join('P4API', apiplatform))
+
+        if platform.system() == 'Windows':
+            p4lib = 'P4API.pyd'
         else:
-            home = os.environ['USERPROFILE']
-        return os.path.realpath(os.path.join(home, 'Documents/maya'))
+            p4lib = 'P4API.so'
 
-    elif platform.system() == 'Linux':
-        return os.path.expanduser('~/maya')
-
-    elif platform.system() == 'Darwin':
-        os.path.expanduser('~/Library/Preferences/Autodesk/maya')
+        logSymlink(os.path.join(apidir, p4lib), os.path.join(dest, p4lib))
+        logSymlink(os.path.join(apidir, 'P4.py'), os.path.join(dest, 'P4.py'))
 
 
-def getNukePreferences():
-    if platform.system() == 'Windows':
-        if os.environ.get('HOME'):
-            home = os.environ['HOME']
-        else:
-            home = os.environ['USERPROFILE']
-        return os.path.join(home, '.nuke')
+    def install_perforce_module(self, dest):
+        if not os.path.exists(dest):
+            os.makedirs(dest)
 
-    elif platform.system() == 'Linux':
-        return os.path.expanduser('~/.nuke')
+        moduledir = os.path.realpath(os.path.join(self.cwd, 'src/perforce'))
 
-    elif platform.system() == 'Darwin':
-        return os.path.expanduser('~/.nuke')
+        logSymlink(moduledir, os.path.join(dest, 'perforce'))
+
+
+
+class Maya(App):
+    def getPreferences(self):
+        """
+            This returns the non-versioned Maya path, as we should be fairly version agnostic and work with any Maya
+        """
+        if os.environ.get('MAYA_APP_DIR'):
+            maya_app_dir = os.environ['MAYA_APP_DIR']
+            return maya_app_dir
+
+        if platform.system() == 'Windows':
+            if os.environ.get('HOME'):
+                home = os.environ['HOME']
+            else:
+                home = os.environ['USERPROFILE']
+            return os.path.realpath(os.path.join(home, 'Documents/maya'))
+
+        elif platform.system() == 'Linux':
+            return os.path.expanduser('~/maya')
+
+        elif platform.system() == 'Darwin':
+            os.path.expanduser('~/Library/Preferences/Autodesk/maya')
+
+
+    def install(self):
+        # Setup Maya
+        maya_scripts = os.path.join(self.getPreferences(), 'scripts')
+        maya_plugins = os.path.join(self.getPreferences(), 'plug-ins')
+        maya_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src/AppPlugins/P4Maya.py'))
+        maya_plugin_dst = os.path.join(maya_plugins, os.path.basename(maya_plugin_src))
+        self.install_p4python(maya_scripts)
+        self.install_perforce_module(maya_scripts)
+
+        if not os.path.exists(maya_plugin_dst):
+            os.makedirs(maya_plugin_dst)
+        logSymlink(maya_plugin_src, maya_plugin_dst)
+
+
+class Nuke(App):
+    def getPreferences(self):
+        if platform.system() == 'Windows':
+            if os.environ.get('HOME'):
+                home = os.environ['HOME']
+            else:
+                home = os.environ['USERPROFILE']
+            return os.path.join(home, '.nuke')
+
+        elif platform.system() == 'Linux':
+            return os.path.expanduser('~/.nuke')
+
+        elif platform.system() == 'Darwin':
+            return os.path.expanduser('~/.nuke')
+
+    def install_nuke(self):
+        nuke_scripts = os.path.join(self.getPreferences(), 'scripts')
+        nuke_plugins = os.path.join(self.getPreferences(), 'plugins')
+        nuke_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src/AppPlugins/P4Nuke.py'))
+        nuke_plugin_dst = os.path.join(nuke_plugins, os.path.basename(nuke_plugin_src))
+        self.install_p4python(nuke_scripts)
+        self.install_perforce_module(nuke_scripts)
+
+        if not os.path.exists(nuke_plugin_dst):
+            os.makedirs(nuke_plugin_dst)
+        logSymlink(nuke_plugin_src, nuke_plugin_dst)
+
+
+
+
+
 
 def setEnvironmentVariable(key, value):
     if platform.system() == 'Windows':
@@ -122,35 +193,7 @@ def setup(args):
                 sys.exit(1)
 
 
-def install_p4python(dest):
-    # @ToDo set this up to sort out the /Maya, /Nuke subfolders under apidir
 
-    if not os.path.exists(dest):
-        os.makedirs(dest)
-
-    cwd = os.path.dirname(os.path.realpath(__file__))
-
-    apiplatform = platform.system().lower()
-    apidir = os.path.join(cwd, os.path.join('P4API', apiplatform))
-
-    if platform.system() == 'Windows':
-        p4lib = 'P4API.pyd'
-    else:
-        p4lib = 'P4API.so'
-
-    logSymlink(os.path.join(apidir, p4lib), os.path.join(dest, p4lib))
-    logSymlink(os.path.join(apidir, 'P4.py'), os.path.join(dest, 'P4.py'))
-
-
-def install_perforce_module(dest):
-    if not os.path.exists(dest):
-        os.makedirs(dest)
-
-    cwd = os.path.dirname(os.path.realpath(__file__))
-
-    moduledir = os.path.realpath(os.path.join(cwd, 'src/perforce'))
-
-    logSymlink(moduledir, os.path.join(dest, 'perforce'))
 
 
 def install_environment(args):
@@ -171,8 +214,8 @@ def install_environment(args):
     if not os.path.exists(p4config):
         open(p4config, 'a').close()
 
-    if not os.environ.get('P4CONFIG'):
-        setEnvironmentVariable('P4CONFIG', p4config)
+    # if not os.environ.get('P4CONFIG'):
+    #     setEnvironmentVariable('P4CONFIG', p4config)
 
     try:
         contents = open(p4config).read()
@@ -187,31 +230,20 @@ def install_environment(args):
         if args.p4editor and not 'P4EDITOR' in contents:
             f.write('P4EDITOR=%s' % args.p4editor)
     
-    
+
 
 
 def install(args):
-    cwd = os.path.dirname(os.path.realpath(__file__))
-
-    # Setup Maya
-    maya_scripts = os.path.join(getMayaPreferences(), 'scripts')
-    maya_plugins = os.path.join(getMayaPreferences(), 'plug-ins')
-    maya_plugin_src = os.path.realpath(os.path.join(cwd, 'src/AppPlugins/P4Maya.py'))
-    maya_plugin_dst = os.path.join(maya_plugins, os.path.basename(maya_plugin_src))
-    install_p4python(maya_scripts)
-    install_perforce_module(maya_scripts)
-
-    if not os.path.exists(maya_plugin_dst):
-        os.makedirs(maya_plugin_dst)
-    logSymlink(maya_plugin_src, maya_plugin_dst)
-
-    # Setup Nuke
-    # @ToDo
-    # install_p4python( os.path.join(getNukePreferences(),'scripts') )
+    apps = [ 
+                # Maya(),
+                Nuke()
+            ]
+    for app in apps:
+        app.install()
 
     # Configure P4CONFIG etc
-    if args.p4config:
-        install_environment(args)
+    # if args.p4config:
+    #     install_environment(args)
 
 
 if __name__ == '__main__':
