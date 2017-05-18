@@ -95,17 +95,25 @@ class Nuke(App):
         elif platform.system() == 'Darwin':
             return os.path.expanduser('~/.nuke')
 
-    def install_nuke(self):
-        nuke_scripts = os.path.join(self.getPreferences(), 'scripts')
-        nuke_plugins = os.path.join(self.getPreferences(), 'plugins')
-        nuke_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src/AppPlugins/P4Nuke.py'))
-        nuke_plugin_dst = os.path.join(nuke_plugins, os.path.basename(nuke_plugin_src))
-        self.install_p4python(nuke_scripts)
-        self.install_perforce_module(nuke_scripts)
+    def install(self):
+        userprefs = self.getPreferences()
+
+        nuke_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src', 'AppPlugins', 'P4Nuke'))
+        nuke_init_py_src = os.path.join(nuke_plugin_src, 'init.py')
+        nuke_menu_py_src = os.path.join(nuke_plugin_src, 'menu.py')
+
+        nuke_plugin_dst = os.path.join(userprefs, 'P4Nuke')
+        nuke_init_py_dst = os.path.join(nuke_plugin_dst, 'init.py')
+        nuke_menu_py_dst = os.path.join(nuke_plugin_dst, 'menu.py')
 
         if not os.path.exists(nuke_plugin_dst):
             os.makedirs(nuke_plugin_dst)
-        logSymlink(nuke_plugin_src, nuke_plugin_dst)
+
+        self.install_p4python(nuke_plugin_dst)
+        self.install_perforce_module(nuke_plugin_dst)
+
+        logSymlink(nuke_init_py_src, nuke_init_py_dst)
+        logSymlink(nuke_menu_py_src, nuke_menu_py_dst)
 
 
 
@@ -133,9 +141,10 @@ def logSymlink(src, dst):
                     if os.path.isdir(dst):
                         os.rmdir(dst)
                     else:
-                        shutil.rmtree(dst)
+                        os.remove(dst)
+                        # shutil.rmtree(dst)
         except OSError as e:
-            print e
+            print 'Symlink error: %s' % e
             return
 
     print 'Linking %s to %s...' % (src, dst)
@@ -160,13 +169,27 @@ def setup(args):
     if platform.system() == 'Windows':
         import ctypes
 
-        def symlink_ntfs(source, link_name):
-            source = source.replace('\\', '/')
-            link_name = link_name.replace('\\', '/')
+        # Unfortunately this method doesn't work with junctions properly,
+        # Python2.7 can't import folders symlinked using this method
+        # 
+        # def symlink_ntfs(source, link_name):
+        #     source = source.replace('\\', '/')
+        #     link_name = link_name.replace('\\', '/')
 
-            kdll = ctypes.windll.LoadLibrary("kernel32.dll")
-            kdll.CreateSymbolicLinkW(
-                unicode(link_name), unicode(source), os.path.isdir(source))
+        #     kdll = ctypes.windll.LoadLibrary("kernel32.dll")
+        #     kdll.CreateSymbolicLinkW(unicode(link_name), unicode(source), os.path.isdir(source))
+
+        # For a simple install script we can hopefully rely on mklink being installed.
+        # If it's not, you would have to make do with simply copying the files instead
+        def mklink(source, link_name):
+            from subprocess import check_output, CalledProcessError 
+            try:
+                if os.path.isdir(source):
+                    check_output("mklink /J %s %s" % (link_name, source), shell=True)
+                else:
+                    check_output("mklink %s %s" % (link_name, source), shell=True)
+            except CalledProcessError as e:
+                print e
 
         def is_admin():
             try:
@@ -175,7 +198,7 @@ def setup(args):
                 return False
 
         # If we're on Windows, the python symlink function isn't available
-        os.symlink = symlink_ntfs
+        os.symlink = mklink
 
         # If this prompt isn't an admin prompt, Windows won't let us symlink :(
         if not is_admin():
