@@ -31,10 +31,10 @@ class SubmitProgressUI(QtWidgets.QDialog):
         self.currentFile += 1
         self.overallProgressBar.setValue(self.currentFile)
 
-        print self.totalFiles, self.currentFile
+        Utils.p4Logger().debug('%s, %s' % (self.totalFiles, self.currentFile))
 
         if self.currentFile >= self.totalFiles:
-            setComplete(True)
+            self.setComplete(True)
 
     def setComplete(self, success):
         if not success:

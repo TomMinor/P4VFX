@@ -3,9 +3,11 @@ import os
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
-import perforce.Utils as Utils
+from perforce import Utils
+from perforce.PerforceUtils import CmdsChangelist
 from perforce.AppInterop import interop
-import SubmitProgressWindow as SubmitProgressUI
+from perforce.PerforceUtils.TestOutputAndProgress import TestOutputAndProgress
+from SubmitProgressWindow import SubmitProgressUI
 
 class SubmitChangeUi(QtWidgets.QDialog):
 
@@ -173,7 +175,8 @@ class SubmitChangeUi(QtWidgets.QDialog):
         # self.p4.progress = callback
         # self.p4.handler = callback
 
-        # Remove student setting from .ma
+        # Remove student setting from Maya .ma files
+        # @ToDo make this a generic callback
         for submitFile in files:
             if ".ma" in submitFile:
                 try:
@@ -184,7 +187,7 @@ class SubmitChangeUi(QtWidgets.QDialog):
 
 
         try:
-            Utils.submitChange(self.p4, files, str(
+            CmdsChangelist.submitChange(self.p4, files, str(
                 self.descriptionWidget.toPlainText()), callback, keepCheckedOut)
             if not keepCheckedOut:
                 clientFiles = []
