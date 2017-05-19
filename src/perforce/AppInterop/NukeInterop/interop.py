@@ -51,12 +51,12 @@ class NukeInterop(BaseInterop):
 
     @staticmethod
     def getCurrentSceneFile():
-        return None
+        return nuke.root().name()
 
 
     @staticmethod
     def openScene(filePath):
-        pass
+        nuke.scriptOpen(filePath)
 
 
     @staticmethod
@@ -66,7 +66,7 @@ class NukeInterop(BaseInterop):
 
     @staticmethod
     def refresh():
-        pass
+        nuke.updateUI()
 
 
     # Nuke doesn't like absolute icons for it's menus,
