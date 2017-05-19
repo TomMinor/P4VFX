@@ -306,7 +306,7 @@ class MainShelf:
     def checkoutFile(self, *args):
         def openFirstFile(selected, error):
             if not error:
-                if len(selected) == 1 and Utils.queryFileExtension(selected[0], sceneFiles):
+                if len(selected) == 1 and Utils.queryFileExtension(selected[0], interop.getSceneFiles()):
                     if not interop.getCurrentSceneFile() == selected[0]:
                         result = QtWidgets.QMessageBox.question(
                             interop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
@@ -459,7 +459,7 @@ class MainShelf:
             self.revisionUi.show()
         except:
             self.revisionUi.deleteLater()
-            traceback.print_exc()
+            Utils.p4Logger().error( traceback.format_exc() )
 
     def queryOpened(self, *args):
         try:
@@ -476,7 +476,7 @@ class MainShelf:
             self.openedUi.show()
         except:
             self.openedUi.deleteLater()
-            traceback.print_exc()
+            Utils.p4Logger().error( traceback.format_exc() )
 
     def submitChange(self, *args):
         try:
@@ -512,7 +512,7 @@ class MainShelf:
             self.submitUI.show()
         except:
             self.submitUI.deleteLater()
-            traceback.print_exc()
+            Utils.p4Logger().error( traceback.format_exc() )
 
     def syncFile(self, *args):
         try:
