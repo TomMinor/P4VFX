@@ -28,7 +28,7 @@ class FileRevisionUI(QtWidgets.QDialog):
     def create(self, p4, files=[]):
         self.p4 = p4
 
-        path = interop.getIconPath() + "p4.png"
+        path = os.path.join(interop.getIconPath(), "p4.png")
         icon = QtGui.QIcon(path)
 
         self.setWindowTitle("File Revisions")
