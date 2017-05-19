@@ -12,7 +12,7 @@ def firstTimeLogin(p4, enterUsername=True, enterPassword=True, parent=None, *arg
     password = None
 
     if enterUsername:
-        username, ok = QtWidgets.QInputDialog.getText(
+        username, ok = QtWidgets.QInputDialog(None, QtCore.Qt.WindowStaysOnTopHint).getText(
             parent,
             "Enter username",
             "Username:",
@@ -24,8 +24,8 @@ def firstTimeLogin(p4, enterUsername=True, enterPassword=True, parent=None, *arg
 
         p4.user = str(username)
 
-    if enterPassword:
-        password, ok = QtWidgets.QInputDialog.getText(
+    if True or enterPassword:
+        password, ok = QtWidgets.QInputDialog(None, QtCore.Qt.WindowStaysOnTopHint).getText(
             parent,
             "Enter password",
             "Password:",

@@ -19,10 +19,6 @@ class NukeInterop(BaseInterop):
 
     @staticmethod
     def main_parent_window():
-        """
-        Get the main Nuke window as a QtGui.QMainWindow instance
-        @return: QtGui.QMainWindow instance of the top level Nuke windows
-        """
         return None
         # return QtWidgets.QApplication.activeWindow()
   
@@ -43,7 +39,7 @@ class NukeInterop(BaseInterop):
 
     @staticmethod
     def getIconPath():
-        return '' #os.path.join(NukeInterop.getSettingsPath(), "P4Nuke", "perforce", "images")
+        return os.path.join(NukeInterop.getSettingsPath(), "P4Nuke", "perforce", "images")
     
     @staticmethod
     def getSceneFiles():
@@ -72,6 +68,11 @@ class NukeInterop(BaseInterop):
     def refresh():
         pass
 
+
+    # Nuke doesn't like absolute icons for it's menus,
+    # so strip out the filename only and ignore the path
+    def sanitizeIconPath(self, iconPath):
+        return os.path.basename(iconPath)
     
     def initializeMenu(self, entries):
         m = nuke.menu( 'Nuke' )
@@ -87,7 +88,7 @@ class NukeInterop(BaseInterop):
     def addMenuSubmenu(self, label, iconPath, entries):
         # Save our current menu
         parent = self.menu
-        self.menu = parent.addMenu(label, icon=iconPath)
+        self.menu = parent.addMenu(label, icon=self.sanitizeIconPath(iconPath))
 
         # Fill up the submenu
         self.fillMenu(entries)
@@ -97,4 +98,4 @@ class NukeInterop(BaseInterop):
 
 
     def addMenuCommand(self, label, iconPath, command):
-        self.menu.addCommand(label, command, icon=iconPath)
+        self.menu.addCommand(label, command, icon=self.sanitizeIconPath(iconPath))

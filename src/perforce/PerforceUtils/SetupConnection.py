@@ -6,7 +6,15 @@ from perforce.Utils import p4Logger
 
 def connect(p4):
     if not p4.connected():
+        # By setting P4's CWD to the settings folder, the user can create a 
+        # P4CONFIG file per app. If they have already set an absolute path
+        # for P4CONFIG, then this will have no effect.
+        # Otherwise P4 will search upwards until it finds a p4config file
+        from perforce.AppInterop import interop
+        p4.cwd = interop.getSettingsPath()
+
         p4Logger().info('Connecting to server... %s' % p4.port)
+        p4Logger().debug('Using p4config file: %s' % p4.p4config_file)
         p4.connect()
 
     try:
@@ -35,7 +43,7 @@ def connect(p4):
         raise e
 
     if info['clientName'] == '*unknown*':
-        msg = 'Perforce client is unknown, please set the P4CONFIG environment variable to a config file containing your Perforce settings'
+        msg = 'Perforce client is unknown, please edit your P4CONFIG file and specify a value for P4CLIENT or use "p4 set"'
         p4Logger().debug(p4.cwd)
         p4Logger().debug('P4CONFIG=%s'%os.environ.get('P4CONFIG'))
         p4Logger().error(msg)
@@ -50,9 +58,7 @@ def connect(p4):
         p4Logger().error(e.msg)
         raise e    
 
-    for key in info:
-        p4Logger().debug( '\t%s:\t%s' % (key, info[key]) )
+    # for key in info:
+    #     p4Logger().debug( '\t%s:\t%s' % (key, info[key]) )
 
     p4Logger().debug("Perforce CWD: %s" % p4.cwd)
-    # if p4.p4config_file == 'noconfig':
-    #     loadP4Config(p4)
