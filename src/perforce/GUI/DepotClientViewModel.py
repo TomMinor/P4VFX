@@ -11,8 +11,7 @@ def epochToTimeStr(time):
     return datetime.datetime.utcfromtimestamp(int(time)).strftime("%d/%m/%Y %H:%M:%S")
 
 def perforceIsDir(p4path):
-    try:
-        #  
+    try: 
         if p4path[-1] in ['/', '\\']:
             p4path = p4path[:-1]
 
@@ -94,26 +93,19 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
 
         isDepotPath = p4path.startswith("//depot")
 
+
         dirs = []
-        files = []
-
-        # Dir silently does nothing if there are no dirs
-        try:
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
             dirs = self.p4.run_dirs(path)
-        except P4Exception:
-            pass
 
-        # Files will return an exception if there are no files in the dir
-        # Stupid inconsistency imo
-        try:
+        files = []
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
             if isDepotPath:
                 files = self.p4.run_files(path)
             else:
                 tmp = self.p4.run_have(path)
                 for fileItem in tmp:
                     files += self.p4.run_fstat(fileItem['clientFile'])
-        except P4Exception:
-            pass
 
         result = []
 
@@ -192,7 +184,7 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
 
             treeItem = self.rootItem
 
-        isDepotPath = "depot" in root
+        isDepotPath = root.startswith("//depot")
 
         dirpath = '/'.join([p4path,'*'])
 

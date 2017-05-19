@@ -135,9 +135,9 @@ class MayaInterop(BaseInterop):
     def getSceneFiles():
         return ['.ma', '.mb']
     
-    # @staticmethod
-    # def getTempPath():
-        # return os.environ['TMPDIR']
+    @staticmethod
+    def getTempPath():
+        return os.environ['TMPDIR']
 
     @staticmethod
     def getCurrentSceneFile():

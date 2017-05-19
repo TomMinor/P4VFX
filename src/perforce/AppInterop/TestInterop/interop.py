@@ -3,7 +3,7 @@ import os
 from perforce.version import __version__
 from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
 from perforce.AppInterop.BaseInterop import BaseInterop
-
+from perforce import Utils
 
 class TestInterop(BaseInterop):
     window = None
@@ -37,7 +37,7 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def getSceneFiles():
-        return []
+        return ['.txt']
 
     @staticmethod
     def getTempPath():
@@ -51,7 +51,8 @@ class TestInterop(BaseInterop):
 
     @staticmethod
     def openScene(filePath):
-        raise NotImplementedError
+        with open(filePath) as f:
+            Utils.p4Logger().info(f.read())
 
     @staticmethod
     def closeWindow(ui):

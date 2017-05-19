@@ -45,9 +45,9 @@ class NukeInterop(BaseInterop):
     def getSceneFiles():
         return ['.nk']
     
-    # @staticmethod
-    # def getTempPath():
-        # return os.environ['TMPDIR']
+    @staticmethod
+    def getTempPath():
+        return os.environ['NUKE_TEMP_DIR']
 
     @staticmethod
     def getCurrentSceneFile():

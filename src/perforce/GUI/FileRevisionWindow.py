@@ -1,24 +1,12 @@
 import os
 import sys
-
 from P4 import P4, P4Exception
 from Qt import QtCore, QtGui, QtWidgets
 
-import perforce.Utils as Utils
-import DepotClientViewModel
+from perforce import Utils
+from perforce.PerforceUtils import CmdsChangelist
 from perforce.AppInterop import interop
-
-def fullPath(idx):
-    result = [idx]
-
-    parent = idx.parent()
-    while True:
-        if not parent.isValid():
-            break
-        result.append(parent)
-        parent = parent.parent()
-
-    return list(reversed(result))
+import DepotClientViewModel
 
 class FileRevisionUI(QtWidgets.QDialog):
 
@@ -41,67 +29,6 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.create_layout()
         self.create_connections()
 
-    def tmp(self, *args):
-        idx = args[0]
-
-        children = []
-
-        i = 1
-        while True:
-            child = idx.child(i, 0)
-            print i, child.data()
-            if not child.isValid():
-                break
-
-            children.append(child)
-            i += 1
-
-            self.populateSubDir(child, showDeleted=False)
-
-        return
-
-        treeItem = idx.internalPointer()
-
-        idxPathModel = fullPath(idx, model.showDeleted)
-
-        idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
-        idxFullPath = os.path.join(*idxPathSubDirs)
-        pathDepth = len(idxPathSubDirs)
-
-        children = []
-
-        p4path = "//{0}/{1}/*".format(self.p4.client, idxFullPath)
-        Utils.p4Logger().debug(p4path)
-        p4children = self.p4.run_dirs("-H", p4path)
-        p4children_names = [child['dir'] for child in p4children]
-
-        if idx.child(0, 0).data() == "TMP":
-            for p4child in p4children_names:
-                data = [p4child, "", "", ""]
-                childData = DepotClientViewModel.PerforceItem(data, idx)
-                treeItem.appendChild(childData)
-
-        i = 0
-        while True:
-            child = idx.child(i, 0)
-            if not child.isValid():
-                break
-
-            children.append(child)
-            i += 1
-
-        for child in children:
-            childIdx = child.internalPointer()
-
-            data = ["TEST", "TEST", "TEST", "TEST"]
-            childDir = DepotClientViewModel.PerforceItem(data, childIdx)
-            childIdx.appendChild(childDir)
-
-            tmpDir = DepotClientViewModel.PerforceItem(["TMP", "", "", "", ""], childDir)
-            childDir.appendChild(tmpDir)
-
-        # view.setModel(model)
-
     def create_controls(self):
         '''
         Create the widgets for the dialog
@@ -113,8 +40,8 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
-        # self.filePerforceItemModel = QtWidgets.QFileSystemModel()
-        # self.filePerforceItemModel.setRootPath(self.p4.cwd)
+        # self.model = QtWidgets.QFileSystemModel()
+        # self.model.setRootPath(self.p4.cwd)
 
         # self.root = "//{0}".format(self.p4.client)
         self.root = "//depot"
@@ -154,7 +81,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
         if interop.getCurrentSceneFile():
-            # self.fileTree.setCurrentIndex(self.filePerforceItemModel.index(interop.getCurrentSceneFile()))
+            # self.fileTree.setCurrentIndex(self.model.index(interop.getCurrentSceneFile()))
             self.loadFileLog()
 
     def create_layout(self):
@@ -189,9 +116,9 @@ class FileRevisionUI(QtWidgets.QDialog):
         '''
         self.fileTree.clicked.connect(self.loadFileLog)
         self.fileTree.expanded.connect(self.onExpandedFolder)
-        # self.getLatestBtn.clicked.connect(self.onSyncLatest)
-        # self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
-        # self.getPreviewBtn.clicked.connect(self.getPreview)
+        self.getLatestBtn.clicked.connect(self.onSyncLatest)
+        self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
+        self.getPreviewBtn.clicked.connect(self.getPreview)
 
     #--------------------------------------------------------------------------
     # SLOTS
@@ -204,21 +131,9 @@ class FileRevisionUI(QtWidgets.QDialog):
         Utils.p4Logger().debug('Expanding %s...' % treeItem.data[-1])
 
         if not index.child(0,0).isValid():
-            Utils.p4Logger().warning('\tLoading empty directory')
+            Utils.p4Logger().debug('\tLoading empty directory')
             self.model.populateSubDir(index, self.root)
 
-
-        # i=0
-        # while True:
-        #     child = index.child(i, 0)
-        #     # child = self.model.index(i, 0, index.parent())
-        #     if not child.isValid():
-        #         break
-
-        #     i += 1
-        #     self.model.populateSubDir(child, self.root)
-
-        # Utils.p4Logger().info( self.model.rowCount() )
         self.fileTree.setModel(self.model)
         self.model.layoutChanged.emit()
 
@@ -227,21 +142,20 @@ class FileRevisionUI(QtWidgets.QDialog):
         item = self.fileRevisions[index]
         revision = item['revision']
 
-        index = self.fileTree.selectedIndexes()[0]
-        if not index:
+        data = self.getSelectedTreeItemData()
+        if not data:
             return
+        
+        # Full path is stored in the final column
+        filePath = data[-1]
+        fileName = data[0]
 
-        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
-        fileName = os.path.basename(filePath)
-
-        path = os.path.join(tempPath, fileName)
+        path = os.path.join(interop.getTempPath(), fileName)
 
         try:
             tmpPath = path
-            self.p4.run_print(
-                "-o", tmpPath, "{0}#{1}".format(filePath, revision))
-            Utils.p4Logger().info(
-                "Synced preview to {0} at revision {1}".format(tmpPath, revision))
+            self.p4.run_print("-o", tmpPath, "{0}#{1}".format(filePath, revision))
+            Utils.p4Logger().info("Synced preview to {0} at revision {1}".format(tmpPath, revision))
             if self.isSceneFile:
                 interop.openScene(tmpPath)
             else:
@@ -249,6 +163,13 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         except P4Exception as e:
             displayErrorUI(e)
+
+    def getSelectedTreeItemData(self):
+        index = self.fileTree.selectedIndexes()[0]
+        if not index.isValid():
+            return None
+        
+        return index.internalPointer().data
 
     def onRevertToSelection(self, *args):
         index = self.tableWidget.rowCount() - 1
@@ -259,30 +180,28 @@ class FileRevisionUI(QtWidgets.QDialog):
         item = self.fileRevisions[index]
         rollbackRevision = item['revision']
 
-        index = self.fileTree.selectedIndexes()[0]
-        if not index:
+        data = self.getSelectedTreeItemData()
+        if not data:
             return
+        
+        # Full path is stored in the final column
+        filePath = data[-1]
 
-        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
+        Utils.p4Logger().debug(filePath)
 
-        desc = "Rollback #{0} to #{1}".format(
-            currentRevision, rollbackRevision)
-        if Utils.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
-            QtWidgets.QMessageBox.information(
-                interop.main_parent_window(), "Success", "Successful {0}".format(desc))
+        desc = "Rollback #{0} to #{1}".format(currentRevision, rollbackRevision)
+        if CmdsChangelist.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
+            QtWidgets.QMessageBox.information(interop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
         self.loadFileLog()
 
     def onSyncLatest(self, *args):
-        try:
-            index = self.fileTree.selectedIndexes()[0]
-            if not index:
-                return
-        except IndexError as e:
-            Utils.p4Logger().info(e)
+        data = self.getSelectedTreeItemData()
+        if not data:
             return
 
-        filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
+        # Full path is stored in the final column
+        filePath = data[-1]
 
         try:
             self.p4.run_sync("-f", filePath)
@@ -316,24 +235,19 @@ class FileRevisionUI(QtWidgets.QDialog):
         except ValueError as e:
             Utils.p4Logger().info(index.internalPointer().data)
             raise e
-        # filePath = self.filePerforceItemModel.fileInfo(index).absoluteFilePath()
-        # Utils.p4Logger().debug('Querying history for file %s' % filePath)
 
         if Utils.queryFileExtension(fullname, interop.getSceneFiles() ):
-            # self.getPreviewBtn.setEnabled(True)
+            self.getPreviewBtn.setEnabled(True)
             self.getPreviewBtn.setText("Preview Scene Revision")
             self.isSceneFile = True
         else:
-            # self.getPreviewBtn.setEnabled(False)
+            self.getPreviewBtn.setEnabled(False)
             self.getPreviewBtn.setText("Preview File Revision")
             self.isSceneFile = False
 
-        # if os.path.isdir(filePath):
-            # return
 
         if filetype == 'Folder':
             return
-            # self.populateSubDir(index, fullname, False)
         else:
             try:
                 files = self.p4.run_filelog("-l", fullname)
@@ -351,8 +265,10 @@ class FileRevisionUI(QtWidgets.QDialog):
             self.getPreviewBtn.setEnabled(True)
 
             try:
-                fileInfo = self.p4.run_fstat(fullname)
-                print fileInfo
+                with self.p4.at_exception_level(P4.RAISE_ERRORS):
+                    fileInfo = self.p4.run_fstat(fullname)
+
+                Utils.p4Logger()
                 if fileInfo:
                     if 'otherLock' in fileInfo[0]:
                         self.statusBar.showMessage("{0} currently locked by {1}".format(

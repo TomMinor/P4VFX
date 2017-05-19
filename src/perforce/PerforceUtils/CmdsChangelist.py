@@ -1,10 +1,11 @@
+import re
+
 from P4 import P4, P4Exception
 from perforce.Utils import p4Logger
 from perforce.PerforceUtils import SetupConnection
+from perforce.GUI.ErrorMessageWindow import displayErrorUI
 
 def queryChangelists( p4, status = None):
-    SetupConnection.connect(p4)
-
     if not status:
         args = ["changes"]
     else:
@@ -17,8 +18,6 @@ def queryChangelists( p4, status = None):
         raise e
 
 def submitChange(p4, files, description, callback, keepCheckedOut = False):
-    SetupConnection.connect(p4)
-
     # Shitty method #1
     p4Logger().info("Files Passed for submission = {0}".format(files))
     
@@ -85,8 +84,6 @@ def submitChange(p4, files, description, callback, keepCheckedOut = False):
     #     raise e
 
 def syncPreviousRevision(p4, file, revision, description):
-    SetupConnection.connect(p4)
-
     p4Logger().info(p4.run_sync("-f", "{0}#{1}".format(file, revision)))
 
     change = p4.fetch_change()
@@ -142,8 +139,6 @@ def syncPreviousRevision(p4, file, revision, description):
     return True
 
 def forceChangelistDelete(p4, lists):
-    SetupConnection.connect(p4)
-
     for list in lists:
         try:
             isUser = (list['user'] == p4.user) 
