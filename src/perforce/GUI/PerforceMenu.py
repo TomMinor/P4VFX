@@ -94,13 +94,13 @@ class MainShelf:
 
             {'label': "Utility",                    'divider': True},
             {'label': "Create Asset",               'image': os.path.join(interop.getIconPath(), "File0352.png"), 'command': lambda *args: self.createAsset(args) },
-            {'label': "Create Shot",                'image': os.path.join(interop.getIconPath(), "File0104.png"), 'command': lambda *args: self.createShot(args)},
+            {'label': "Create Shot",                'image': os.path.join(interop.getIconPath(), "File0104.png"), 'command': lambda *args: self.createShot(args) },
             # Submenu
             {
                 'label': "Miscellaneous",           'image': os.path.join(interop.getIconPath(), "File0411.png"), 'entries': [
                     {'label': "Server",                     'divider': True},
                     {'label': "Login as user",              'image': os.path.join(interop.getIconPath(), "File0077.png"),    'command': lambda *args: self.validateConnected(self.loginAsUser, args)},
-                    {'label': "Server Info",                'image': os.path.join(interop.getIconPath(), "File0031.png"),    'command': lambda *args: self.queryServerStatus(args)},
+                    {'label': "Server Info",                'image': os.path.join(interop.getIconPath(), "File0031.png"),    'command': lambda *args: self.validateConnected(self.queryServerStatus, args)},
                     {'label': "Workspace",                  'divider': True},
                     {'label': "Create Workspace",           'image': os.path.join(interop.getIconPath(), "File0238.png"),    'command': lambda *args: self.validateConnected(self.createWorkspace, args)},
                     {'label': "Set Current Workspace",      'image': os.path.join(interop.getIconPath(), "File0044.png"),    'command': lambda *args: self.validateConnected(self.setCurrentWorkspace, args)},

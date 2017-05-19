@@ -231,16 +231,18 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
                                    )
 
         # Query files only existing in pending changelists
+        # and not added yet
         with self.p4.at_exception_level(P4.RAISE_ERRORS):
             filesInCurrentChange = self.p4.run_opened(path)
             for x in filesInCurrentChange:
-                results.append({'name': x['clientFile'],
-                                'action': x['action'],
-                                'change': x['change'],
-                                'time': "",
-                                'type': x['type']
-                                }
-                               )
+                if x['action'] == 'add':
+                    results.append({'name': x['clientFile'],
+                                    'action': x['action'],
+                                    'change': x['change'],
+                                    'time': "",
+                                    'type': x['type']
+                                    }
+                                   )
 
         return results
 
