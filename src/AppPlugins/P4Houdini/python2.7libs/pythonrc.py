@@ -1,6 +1,7 @@
 import sys
 import os
-sys.path.append( os.path.join( os.getenv('HOUDINI_USER_PREF_DIR'), 'python2.7libs', 'P4Houdini') )
+prefs = os.getenv("HOUDINI_USER_PREF_DIR")
+sys.path.append( os.path.join( prefs, 'scripts', 'python', 'P4Houdini') )
 
 import perforce
 try:

@@ -78,7 +78,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         # self.statusBar.showMessage("Test")
 
         self.horizontalLine = QtWidgets.QFrame()
-        self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        # self.horizontalLine.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
         if interop.getCurrentSceneFile():
             # self.fileTree.setCurrentIndex(self.model.index(interop.getCurrentSceneFile()))

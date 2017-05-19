@@ -26,6 +26,7 @@ def connect(p4):
             LoginWindow.setP4Password(p4)
         except P4Exception as e:
             p4Logger().warning('Couldn\'t login to server')
+            p4.disconnect()
             raise
 
         try:

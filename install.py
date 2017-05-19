@@ -9,6 +9,16 @@ class App(object):
     def __init__(self):
         self.cwd = os.path.dirname(os.path.realpath(__file__))
 
+    def appendToFile(self, text, path):
+        with open(path, 'a+') as f:
+            lines = f.read()
+
+            f.seek(0)
+            if not text in lines:
+                f.write(text)
+            else:
+                print '%s is initialized already, skipping setup' % path
+
     def getPreferences(self):
         pass
 
@@ -115,6 +125,72 @@ class Nuke(App):
         logSymlink(nuke_init_py_src, nuke_init_py_dst)
         logSymlink(nuke_menu_py_src, nuke_menu_py_dst)
 
+        init_src = """
+import nuke
+nuke.pluginAddPath('./P4Nuke')
+        """
+
+        global_init_py = os.path.join(userprefs, 'init.py')
+        self.appendToFile(init_src, global_init_py)
+
+
+class Katana(App):
+    def getPreferences(self):
+        user_dir = os.getenv("KATANA_USER_RESOURCE_DIRECTORY")
+        if user_dir:
+            return user_dir
+
+        if platform.system() == 'Windows':
+            if os.environ.get('HOME'):
+                home = os.environ['HOME']
+            else:
+                home = os.environ['USERPROFILE']
+            return os.path.join(home, '.katana')
+
+        elif platform.system() == 'Linux':
+            return os.path.expanduser('~/.katana')
+
+        elif platform.system() == 'Darwin':
+            return os.path.expanduser('~/.katana')
+
+    def install(self):
+        userprefs = self.getPreferences()
+
+        katana_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src', 'AppPlugins', 'P4Katana'))
+        katana_init_py_src = os.path.join(katana_plugin_src, 'init.py')
+
+        katana_plugin_dst = os.path.join(userprefs, 'P4Katana')
+        katana_init_py_dst = os.path.join(userprefs, 'init.py')
+
+        if not os.path.exists(katana_plugin_dst):
+            os.makedirs(katana_plugin_dst)
+
+        self.install_p4python(katana_plugin_dst)
+        self.install_perforce_module(katana_plugin_dst)
+
+        logSymlink(katana_init_py_src, katana_init_py_dst)
+
+#         init_src = """
+# import sys
+# import traceback
+# import nuke
+# import perforce
+
+# import logging
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
+# try:
+#     logger.info('Adding Perforce Menu...')
+#     perforce.init()
+# except Exception as e:
+#     logger.error( 'Failed to load Perforce for Katana: %s\n' % e )
+#     logger.error( traceback.format_exc() )
+#         """
+
+#         global_init_py = os.path.join(userprefs, 'init.py')
+#         self.appendToFile(init_src, global_init_py)
+
 
 class Houdini(App):
     def getPreferences(self):
@@ -137,8 +213,8 @@ class Houdini(App):
         hou_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src', 'AppPlugins', 'P4Houdini'))
         hou_pythonrc_py_src = os.path.join(hou_plugin_src, 'python2.7libs', 'pythonrc.py')
 
-        hou_plugin_dst = os.path.join(userprefs, 'python2.7libs', 'P4Houdini')
-        hou_pythonrc_py_dst = os.path.join(userprefs, 'python2.7libs', 'pythonrc.py')
+        hou_plugin_dst = os.path.join(userprefs, 'scripts', 'python', 'P4Houdini')
+        hou_pythonrc_py_dst = os.path.join(userprefs, 'scripts', 'python', 'pythonrc.py')
 
         if not os.path.exists(hou_plugin_dst):
             os.makedirs(hou_plugin_dst)
@@ -182,21 +258,7 @@ def logSymlink(src, dst):
     os.symlink(src, dst)
 
 
-def setupCommandLineArgs():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        '-p', '--p4port', help='The Perforce server IP saved to P4CONFIG, e.g. ssl:12.34.567.8:1666')
-
-    parser.add_argument(
-        '-c', '--p4config', help='The P4CONFIG file to write to (default is \'~/.p4config\')', default='~/.p4config')
-    parser.add_argument(
-        '-e', '--p4editor', help='Override the editor used by Perforce, highly recommended to avoid hangs in GUI apps')
-
-    return parser.parse_args()
-
-
-def setup(args):
+def setup():
     if platform.system() == 'Windows':
         import ctypes
 
@@ -233,7 +295,7 @@ def setup(args):
 
         # If this prompt isn't an admin prompt, Windows won't let us symlink :(
         if not is_admin():
-            print "Warning: This prompt isn't elevated, not possible to symlink files. Do a simple copy instead? [Y/N]"
+            print "Warning: This prompt isn't elevated (admin), not possible to symlink files. Do a simple copy instead? [Y/N]"
             sys.stdout.flush()
 
             yes = set(['yes', 'y', 'ye', ''])
@@ -246,64 +308,24 @@ def setup(args):
                 print 'Aborting.'
                 sys.exit(1)
 
-
-
-
-
-def install_environment(args):
-    # # Perforce for Maya relies on these variables being set in some form or another
-        # # Setup config (Bash)
-        # echo "export P4CONFIG=$_P4CONFIGPATH" >> ~/.profile
-
-    p4config = os.path.realpath(os.path.expanduser(args.p4config))
-
-    p4configpath, p4configfile = os.path.split(p4config)
-    if not os.path.exists(os.path.dirname(p4configpath)):
-        try:
-            os.makedirs(os.path.dirname(p4configpath))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
-
-    if not os.path.exists(p4config):
-        open(p4config, 'a').close()
-
-    # if not os.environ.get('P4CONFIG'):
-    #     setEnvironmentVariable('P4CONFIG', p4config)
-
-    try:
-        contents = open(p4config).read()
-    except IOError as e:
-        print e
-        return
-
-    with open(p4config, 'w') as f:
-        if not 'P4PORT' in contents:
-            f.write('P4PORT=%s' % args.p4port)
-
-        if args.p4editor and not 'P4EDITOR' in contents:
-            f.write('P4EDITOR=%s' % args.p4editor)
-    
-
-
-
-def install(args):
+def install():
     apps = [ 
-                # Maya(),
+                Maya(),
                 Nuke(),
+                Katana(),
                 Houdini()
             ]
     for app in apps:
+        msg = '-'*25 + ' Setting up Perforce for %s' % (type(app).__name__) + '-'*25
+        print '-' * len(msg)
+        print msg
+        print '-' * len(msg)
         app.install()
-
-    # Configure P4CONFIG etc
-    # if args.p4config:
-    #     install_environment(args)
+        print ''
 
 
 if __name__ == '__main__':
-    args = setupCommandLineArgs()
-    setup(args)
-    install(args)
+    setup()
+    install()
 
     print 'Done!'

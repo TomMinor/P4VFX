@@ -58,9 +58,8 @@ class HoudiniInterop(BaseInterop):
 
 
     def initializeMenu(self, entries):
-        pass
-        # m = nuke.menu( 'Nuke' )
-        # self.menu = m.addMenu( 'Perforce' )
+        self.menu = QtWidgets.QMenu( hou.ui.mainQtWindow() )
+        self.menu.setTitle('Perforce')
 
     def addMenuDivider(self, label):
         pass

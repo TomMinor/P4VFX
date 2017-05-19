@@ -791,7 +791,8 @@ def _pyqt4():
         except ValueError:
             actual = sip.getapi(api)
             if not hint:
-                raise ImportError("API version already set to %d" % actual)
+                pass
+                # raise ImportError("API version already set to %d" % actual)
             else:
                 # Having provided a hint indicates a soft constraint, one
                 # that doesn't throw an exception.

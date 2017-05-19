@@ -36,6 +36,4 @@ def TestingEnvironment():
     p4 = P4()
     p4.connect()
 
-    SetupConnection.connect(p4)
-
     return p4

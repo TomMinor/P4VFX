@@ -81,7 +81,7 @@ class TestInterop(BaseInterop):
     def addMenuSubmenu(self, label, icon, entries):
         # Save our current menu
         parent = self.menu
-        self.menu = parent.addMenu(label)
+        self.menu = parent.addMenu(QtGui.QIcon(icon), label)
 
         # Fill up the submenu
         self.fillMenu(entries)
@@ -91,4 +91,4 @@ class TestInterop(BaseInterop):
 
 
     def addMenuCommand(self, label, icon, command):
-        self.menu.addAction(label, command)
+        self.menu.addAction(QtGui.QIcon(icon), label, command)

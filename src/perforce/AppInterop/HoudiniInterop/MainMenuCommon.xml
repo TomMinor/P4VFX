@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Please note, that the files that define the main menu (ie,
+     MainMenuCommon, MainMenuMaster, and MainMenuEscape)
+     can exist in $HOME/houdiniX.Y/ directory and will supplement 
+     the original definitions found in $HFS/houdini/ 
+     The XML elements shown in this example file should be included in
+     one of the official file names (eg, MainMenuCommon) for them to take 
+     effect in Houdini. 
+-->
+
+<!-- Please see menu.xsd for the menu validation schema. -->
+
+<mainMenu>
+  <menuBar>
+
+    <!-- An example of how to add own python scripts submenu to the main menu.
+
+	  Note, that the 'id' attribute is optional, and if not specified, 
+	  it will be automaticaly generated and assigned internally. The 'id'
+	  has some significace for action and toggle items, where it corresponds
+	  to the hotkey for that item. However, if no hotkey needs to be
+	  assigned in the hotkey customization file, the id may be omitted for
+	  these items too.
+    -->
+    <subMenu>
+    <label>My Scripts</label>
+      <scriptItem id="h.my_python_script_file">
+        <label>My Python Script File</label>
+	<scriptPath>$HOME/script_file.py</scriptPath>
+	<scriptArgs>arg_one arg_two arg_three</scriptArgs>
+      </scriptItem>
+
+    <!-- An example of how to add embedded python scripts
+    -->
+      <scriptItem id="h.my_python_script_code">
+        <label>My Python Script Code</label>
+	<scriptCode><![CDATA[import sys
+hou.ui.displayMessage("from code " + str(sys.argv))]]></scriptCode>
+	<scriptArgs>arg_one arg_two arg_three</scriptArgs>
+      </scriptItem>
+    </subMenu>
+
+
+    <!-- An example of how to add a new submenu at the beginning of the 
+         window menu. 
+    -->
+    <subMenu id="windows_menu">
+
+      <subMenu id="my_submenu">
+      <label>My Submenu</label>
+      <insertBefore/>
+
+	<titleItem>
+	   <label>My Actions</label>
+	</titleItem>
+
+        <scriptItem id="h.my_action_1">
+          <label>Action 1</label>
+	  <scriptPath>$HOME/scripts/action_1.py</scriptPath>
+        </scriptItem>
+
+        <separatorItem/>
+
+        <scriptItem id="h.my_action_2">
+          <label>Action 2</label>
+	  <scriptPath>$HOME/scripts/action_2.py</scriptPath>
+        </scriptItem>
+
+        <scriptItem id="h.my_action_1_alias">
+	  <actionId>h.my_action_1</actionId>
+          <label>Action 1 Alias</label>
+        </scriptItem>
+
+      </subMenu>
+
+      <separatorItem>
+      <insertAfter>my_submenu</insertAfter>
+      </separatorItem>
+
+    </subMenu>
+
+
+    <!-- An example of how to add own radio button strip to the main menu.
+         In general, scripted radio strips are tied to Houdini global variables.
+	 The scripted radio strip has two objectives: to reflect the current
+	 value of a global variable and to set that global variable if any of
+	 the radio items is clicked. 
+	 The scripted radio strip needs to specify the global variable name with
+	 the <variableName> tag, and then it can specify any number of members
+	 with <scriptRadioItem>. Each item has a label and also the global
+	 variable value, <variableValue>, it corresponds to. 
+	 When a radio button is clicked, by default, it sets the global
+	 variable <variableName> to its <variableValue>. And, conversly, when a
+	 global variable changes the value (in hscript: set -g VAR = val) and
+	 Houdini is instructed to refresh variable dependencies (in hscript:
+	 varchange VAR), then the strip will look for a radio item that has the
+	 same value specified, and will set the radio marker for that item.
+
+	 Scripted radio items can have Python code specified with <scriptCode>
+	 or with <scriptPath>, much like the action <scriptItem> element. If the
+	 code is specified, it replaces the default behaviour of the radio. The
+	 code should set the variable, but it does not have to. The radio items
+	 that don't specify explicit script are equivalent to the following
+	 Python script:
+	    hou.hscript('set -g VAR = val')
+	    hou.hscript('varchange VAR')
+	
+	 The code, however, can do whatever it wants. Still, it is a good idea
+	 to at least call hou.hscript('varchange VAR') to restore the radio item
+	 index, otherwise the menu may get out of sync, if the variable is not
+	 set to the value corresponding to the clicked item.
+    -->
+	
+    <subMenu id="edit_menu">
+      <subMenu id="myvar_variable">
+      <label>Set MYVAR_RADIO</label>
+      <insertBefore>objects_submenu</insertBefore>
+        <scriptMenuStripRadio>
+	  <variableName>MYVAR_RADIO</variableName> 
+	  <scriptRadioItem id="h.myvar_one">
+	    <label>One</label>
+	    <variableValue>value_of_one</variableValue> 
+	  </scriptRadioItem>
+	  <scriptRadioItem id="h.myvar_two">
+	    <label>Two</label>
+	    <variableValue>two</variableValue> 
+	  </scriptRadioItem>
+	  <scriptRadioItem id="h.myvar_three">
+	    <label>Three</label>
+	    <variableValue>3</variableValue> 
+	  </scriptRadioItem>
+	  <scriptRadioItem id="h.myvar_four">
+	    <label>Four</label>
+	    <variableValue>fourth_value</variableValue> 
+	    <scriptCode><![CDATA[
+message  = 'Do you want to change the global variable MYVAR_RADIO?'
+response = hou.ui.displayMessage( message, ('Yes', 'No'))
+if response == 0:
+    hou.hscript("set -g MYVAR_RADIO = 'fourth_value'")
+    hou.hscript("varchange MYVAR_RADIO")
+else:
+    # call varchange anyway to restore the radio strip UI to old radio index
+    hou.hscript("varchange MYVAR_RADIO")]]></scriptCode>
+	  </scriptRadioItem>
+        </scriptMenuStripRadio>
+      </subMenu>
+    </subMenu>
+
+
+    <!-- An example of how to add a script toggle button.
+	 Just like scriptRadioStrip, the scripted toggle is usually tied to 
+	 a Houdini global variable, and just like the strip it has two
+	 funcitons: to reflect the current value of that global variable and to
+	 set (toggle) when the menu item is clicked. 
+	 Thus, <scriptToggleItem>, specifies the global variable name with the
+	 <variableName> tag. When global variable value changes and the event is
+	 sent with hscript command 'varchange VARNAME', the script toggle item
+	 that specifies that name will be updated. By default, when invoked,
+	 the script toggle item will toggle the value of the variable it
+	 specifies and will propagate the event. It is advisable to use "0" for
+	 false and "1" for true, for the toggle global variables.
+
+	 The <scriptToggleItem> can also have its own custom Python script in
+	 the <scriptCode> or <scriptPath> block. The script replaces the default
+	 behaviour and needs to toggle the global variable itself. Below is an
+	 example of two scripted toggle items, one default and one with a script
+	 that is very similar to what the default script toggle button would do.
+    -->
+
+    <subMenu id="edit_menu">
+      <scriptToggleItem id="myvar_toggle">
+        <label>MYVAR_TOGGLE Status</label>
+        <insertBefore>objects_submenu</insertBefore>
+	<variableName>MYVAR_TOGGLE</variableName>
+      </scriptToggleItem>
+
+      <scriptToggleItem id="myvar_toggle_script">
+        <label>MYVAR_TOGGLE Status With Script</label>
+        <insertBefore>objects_submenu</insertBefore>
+	<variableName>MYVAR_TOGGLE</variableName>
+	<scriptCode><![CDATA[hou.hscript("""
+if( $MYVAR_TOGGLE ) then
+    set -g MYVAR_TOGGLE = 0;
+else
+    set -g MYVAR_TOGGLE = 1;
+endif
+""")
+hou.hscript('varchange MYVAR_TOGGLE')
+(out, err) = hou.hscript('echo $MYVAR_TOGGLE')
+if( int(out) ):
+    status = "on"
+else:
+    status = "off"
+hou.ui.displayMessage( "MYVAR_TOGGLE has been turned " + status )
+]]></scriptCode>
+      </scriptToggleItem>
+    </subMenu>
+
+  <!-- Needed for removeItem below -->
+    <subMenu id="to_delete_menu">
+    </subMenu>
+
+  <!-- Needed for addScriptItem below -->
+    <subMenu id="tools_menu">
+        <label>My Tools</label>
+        <separatorItem id="some_menu_item"/>
+    </subMenu>
+
+  </menuBar>
+
+
+
+
+  <!-- An example of how to add a new menu item that will invoke a python script
+       from a file. This method of adding a menu item does not require repeating
+       the entire menu structure that defines the item's parenting. The
+       script_file.py will be passed the argument string "-q -n extra_name"
+       which will be available in the script as standard command line arguments:
+       sys.argv[0] = (...)/script_file.py
+       sys.argv[1] = '-q'
+       sys.argv[2] = '-n'
+       sys.argv[3] = 'extra_name'
+  -->
+
+  <addScriptItem id="h.my_added_script">
+        <label>My Added Python Script</label>
+	<parent>tools_menu</parent>
+	<insertBefore>some_menu_item</insertBefore>
+
+	<scriptPath>$HOME/script_file.py</scriptPath>
+	<scriptArgs>-q -n extra_name</scriptArgs>
+  </addScriptItem>
+
+  <!-- The menu item can be inserted at a desired position using the following
+       tags:
+       <insertBefore/>			- insert at the beginning of the submenu
+       <insertBefore>id</insertBefore>	- insert before an item given by the id
+       <insertAfter/>			- append at the end of the submenu
+       <insertAfter>id</insertAfter>	- insert after an item given by the id
+       <insertAtIndex>2</insertAtIndex>	- insert at a given numerical index
+  -->
+
+
+  <!-- An example of how to modify some attributes of the menu items such 
+       as label, parent, and position in the menu. Note, that not all
+       attributes need to be specified within <modifyItem> element; if, for
+       example, the label does not need any change, it may be omitted.
+  -->
+  <modifyItem id="h.open_bundlelist">
+        <label>My Rearranged Bundles...</label>
+	<parent>tools_menu</parent>
+	<insertAfter>some_menu_item</insertAfter>
+  </modifyItem>
+
+
+  <!-- An example of how to move the Desktop submenu out of the Windows menu
+       and directly into the menu bar (using partial submenu redefinition).
+  -->
+  <menuBar>
+    <subMenu id="desktop_submenu">
+      <insertBefore>help_menu</insertBefore>
+    </subMenu>
+  </menuBar>
+  <removeItem id="windows_menu_sep_0"/>
+
+  <!-- An example of how to remove menu items or entire submenus 
+       from the main menu.
+  -->
+  <removeItem id="h.optype_mgr"/>
+  <removeItem id="to_delete_menu"/>
+  <removeItem id="h.mat_palette"/>
+
+</mainMenu>
