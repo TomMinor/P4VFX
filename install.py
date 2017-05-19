@@ -116,6 +116,37 @@ class Nuke(App):
         logSymlink(nuke_menu_py_src, nuke_menu_py_dst)
 
 
+class Houdini(App):
+    def getPreferences(self):
+        if platform.system() == 'Windows':
+            if os.environ.get('HOME'):
+                home = os.environ['HOME']
+            else:
+                home = os.environ['USERPROFILE']
+            return os.path.join(home, 'Documents', 'houdini16.0')
+
+        elif platform.system() == 'Linux':
+            return os.path.expanduser('~/Documents/houdini16.0')
+
+        elif platform.system() == 'Darwin':
+            return os.path.expanduser('~/Documents/houdini16.0')
+
+    def install(self):
+        userprefs = self.getPreferences()
+
+        hou_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src', 'AppPlugins', 'P4Houdini'))
+        hou_pythonrc_py_src = os.path.join(hou_plugin_src, 'python2.7libs', 'pythonrc.py')
+
+        hou_plugin_dst = os.path.join(userprefs, 'python2.7libs', 'P4Houdini')
+        hou_pythonrc_py_dst = os.path.join(userprefs, 'python2.7libs', 'pythonrc.py')
+
+        if not os.path.exists(hou_plugin_dst):
+            os.makedirs(hou_plugin_dst)
+
+        self.install_p4python(hou_plugin_dst)
+        self.install_perforce_module(hou_plugin_dst)
+
+        logSymlink(hou_pythonrc_py_src, hou_pythonrc_py_dst)
 
 
 
@@ -259,7 +290,8 @@ def install_environment(args):
 def install(args):
     apps = [ 
                 # Maya(),
-                Nuke()
+                Nuke(),
+                Houdini()
             ]
     for app in apps:
         app.install()

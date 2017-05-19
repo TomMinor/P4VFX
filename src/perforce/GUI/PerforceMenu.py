@@ -8,6 +8,8 @@ from P4 import P4, P4Exception
 from perforce import Utils
 from perforce.PerforceUtils import SetupConnection
 from perforce.AppInterop import interop
+from perforce.PerforceUtils.TestOutputAndProgress import TestOutputAndProgress
+from perforce.GUI.SubmitProgressWindow import SubmitProgressUI
 
 from LoginWindow import firstTimeLogin
 from ErrorMessageWindow import displayErrorUI
@@ -523,6 +525,21 @@ class MainShelf:
             displayErrorUI(e)
 
     def syncAll(self, *args):
+        reply = QtWidgets.QMessageBox.warning(interop.main_parent_window(), 
+            'Are you sure?',
+            'Are you sure? This will force every file to redownload and can take some time to complete.',
+            QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+        
+        if reply == QtWidgets.QMessageBox.No:
+            return
+
+        # progress = SubmitProgressUI(len(files))
+        # progress.create("Submit Progress")
+
+        # callback = TestOutputAndProgress(progress)
+
+        # progress.show()
+
         try:
             self.p4.run_sync("-f", "...")
             Utils.p4Logger().info("Got latest revisions for client")
