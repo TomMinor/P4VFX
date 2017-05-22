@@ -3,8 +3,8 @@ import logging
 import os
 import sys
 
-from test_perforce import TestingEnvironment, setupEnvironment
-setupEnvironment()
+from test_perforce import TestingEnvironment, setupPythonEnvironment
+setupPythonEnvironment()
 
 from perforce.Utils import p4Logger
 from perforce.AppInterop import interop
@@ -49,7 +49,7 @@ def setup(args):
     cwd = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
     os.environ["P4CONFIG"] = os.path.join(cwd, '.p4config')
 
-    window, app = interop.setupTestingEnvironment()
+    window, app = interop.setupEnvironment()
     logging.basicConfig(level=logging.DEBUG)
 
     p4 = TestingEnvironment()
