@@ -1,3 +1,6 @@
+import sip
+sip.setapi('QString', 2)
+
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,12 +32,15 @@ def getSettingsPath():
         home = os.environ['USERPROFILE']
     return os.path.join(home, '.katana')
 
-
-
 import sys
 sys.path.append(os.path.join(getSettingsPath(), 'P4Katana'))
 
-import perforce
+# Tell qtpy to use PyQt
+os.environ['QT_API'] = 'pyqt4'
+os.environ['ETS_TOOLKIT'] = 'qt4'
+
+# import perforce
+
 # try:
 #     logger.info("Adding Perforce Menu...")
 #     perforce.init()

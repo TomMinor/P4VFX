@@ -9,7 +9,7 @@ from test_perforce import TestingEnvironment
 
 class PerforceUITests(unittest.TestCase):
     def setUp(self):
-        window, app = interop.setupTestingEnvironment()
+        window, app = interop.setupEnvironment()
         logging.basicConfig(level=logging.DEBUG)
 
         self.p4 = TestingEnvironment()

@@ -3,7 +3,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-def setupEnvironment():
+def setupPythonEnvironment():
     try:
         import P4
     except ImportError:
@@ -27,7 +27,7 @@ def setupEnvironment():
         except ImportError as e:
             raise
 
-setupEnvironment()
+setupPythonEnvironment()
 
 
 from P4 import P4, P4Exception

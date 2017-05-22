@@ -22,7 +22,7 @@ import maya.OpenMaya as api
 import perforce.GlobalVars
 from perforce.version import __version__
 from perforce.AppInterop.BaseInterop import BaseInterop, BaseCallbacks
-from perforce.GUI.Qt import QtCore, QtGui, QtWidgets, __binding__
+from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 
 class MayaCallbacks(BaseCallbacks):
     contactrootenv = "CONTACTROOT"
@@ -102,7 +102,7 @@ class MayaCallbacks(BaseCallbacks):
 
 class MayaInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         import maya.standalone
         maya.standalone.initialize("Python")
 
@@ -114,9 +114,9 @@ class MayaInterop(BaseInterop):
         """
         
         import maya.OpenMayaUI as apiUI
-        if __binding__ in ('PySide2', 'PyQt5'):
+        try:
             import shiboken2 as shiboken
-        else:
+        except:
             import shiboken
         
         ptr = apiUI.MQtUtil.mainWindow()

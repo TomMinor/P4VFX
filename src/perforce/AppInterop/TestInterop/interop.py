@@ -1,7 +1,7 @@
 import os
 
 from perforce.version import __version__
-from perforce.GUI.Qt import QtCore, QtGui, QtWidgets
+from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 from perforce.AppInterop.BaseInterop import BaseInterop
 from perforce import Utils
 
@@ -9,7 +9,7 @@ class TestInterop(BaseInterop):
     window = None
 
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         class TestWidget(QtWidgets.QWidget):
             def keyPressEvent(self, e):
                 if e.key() == QtCore.Qt.Key_Escape:

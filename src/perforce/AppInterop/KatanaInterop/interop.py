@@ -11,12 +11,12 @@ import perforce.GlobalVars
 from perforce import Utils
 from perforce.version import __version__
 from perforce.AppInterop.BaseInterop import BaseInterop, BaseCallbacks
-from perforce.GUI.Qt import QtCore, QtGui, QtWidgets, __binding__
+from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 
 
 class KatanaInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         pass
 
     @staticmethod

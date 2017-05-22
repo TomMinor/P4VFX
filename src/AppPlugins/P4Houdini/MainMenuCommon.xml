@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mainMenu>
+  <menuBar>
+    <!-- ========================= Pipeline Menu ========================= -->
+    <subMenu id="perforce_menu">
+      <label>Perforce</label>
+
+      <titleItem>
+          <label>Client Commands</label>
+      </titleItem>
+
+      <scriptItem id="h.checkoutFile">
+          <label>Checkout File(s)</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.checkoutFile)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.checkoutFolder">
+          <label>Checkout Folder</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.checkoutFolder)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.deleteFile">
+          <label>Mark for Delete</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.deleteFile)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.queryOpened">
+          <label>Show Changelist</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.queryOpened)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <titleItem>
+          <label>Depot Commands</label>
+      </titleItem>
+
+      <scriptItem id="h.submitChange">
+          <label>Submit Change</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.submitChange)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.syncAllChanged">
+          <label>Sync All</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.syncAllChanged)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.syncAll">
+          <label>Sync All - Force</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.syncAll)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.fileRevisions">
+          <label>Show Depot History</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.fileRevisions)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <titleItem>
+          <label>Scene</label>
+      </titleItem>
+
+      <scriptItem id="h.querySceneStatus">
+          <label>File Status</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.querySceneStatus)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <titleItem>
+          <label>Utility</label>
+      </titleItem>
+
+      <scriptItem id="h.createAsset">
+          <label>Create Asset</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.createAsset)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <scriptItem id="h.createShot">
+          <label>Create Shot</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.createShot)
+          ]]>
+          </scriptCode>
+      </scriptItem>
+
+      <titleItem>
+      </titleItem>
+
+      <subMenu>
+        <label>Miscellaneous</label>
+        <titleItem>
+          <label>Server</label>
+        </titleItem>
+
+        <scriptItem id="h.loginAsUser">
+          <label>Login as user</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.loginAsUser)
+          ]]>
+          </scriptCode>
+        </scriptItem>
+
+        <scriptItem id="h.queryServerStatus">
+          <label>Server Info</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.queryServerStatus)
+          ]]>
+          </scriptCode>
+        </scriptItem>
+
+        <titleItem>
+          <label>Workspace</label>
+        </titleItem>
+
+        <scriptItem id="h.createWorkspace">
+          <label>Create Workspace</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.createWorkspace)
+          ]]>
+          </scriptCode>
+        </scriptItem>
+
+        <scriptItem id="h.setCurrentWorkspace">
+          <label>Set Current Workspace</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.setCurrentWorkspace)
+          ]]>
+          </scriptCode>
+        </scriptItem>
+
+        <titleItem>
+          <label>Debug</label>
+        </titleItem>
+
+        <scriptItem id="h.deletePending">
+          <label>Deletel all pending changest</label>
+          <scriptCode>
+          <![CDATA[
+import perforce
+perforce.GUI.ui.validateConnected(perforce.GUI.ui.deletePending)
+          ]]>
+          </scriptCode>
+        </scriptItem>
+      </subMenu>
+    </subMenu>
+    <!-- ========================= HELP Menu ========================= -->
+    <subMenu id="help_menu"/>
+  </menuBar>
+</mainMenu>

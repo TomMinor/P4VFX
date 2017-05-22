@@ -9,13 +9,22 @@ import perforce.GlobalVars
 from perforce import Utils
 from perforce.version import __version__
 from perforce.AppInterop.BaseInterop import BaseInterop, BaseCallbacks
-from perforce.GUI.Qt import QtCore, QtGui, QtWidgets, __binding__
+from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 
 
 class HoudiniInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         pass
+        # class TestWidget(QtWidgets.QWidget):
+        #     def keyPressEvent(self, e):
+        #         if e.key() == QtCore.Qt.Key_Escape:
+        #             self.close()
+
+        # app = QtWidgets.QApplication([])
+
+        # TestInterop.window = TestWidget()
+        # return TestInterop.window, app
 
     @staticmethod
     def main_parent_window():

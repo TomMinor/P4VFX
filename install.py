@@ -15,9 +15,23 @@ class App(object):
 
             f.seek(0)
             if not text in lines:
-                f.write(text)
+                f.write('\n' + text)
             else:
                 print '%s is initialized already, skipping setup' % path
+
+    def getHome(self):
+        if platform.system() == 'Windows':
+            if os.environ.get('HOME'):
+                home = os.environ['HOME']
+            else:
+                home = os.environ['USERPROFILE']
+            return home
+
+        elif platform.system() == 'Linux':
+            return os.path.expanduser('~')
+
+        elif platform.system() == 'Darwin':
+            return os.path.expanduser('~')
 
     def getPreferences(self):
         pass
@@ -194,35 +208,48 @@ class Katana(App):
 
 class Houdini(App):
     def getPreferences(self):
-        if platform.system() == 'Windows':
-            if os.environ.get('HOME'):
-                home = os.environ['HOME']
-            else:
-                home = os.environ['USERPROFILE']
-            return os.path.join(home, 'Documents', 'houdini16.0')
+        homedir = self.getHome()
+        
+        prefs = []
 
-        elif platform.system() == 'Linux':
-            return os.path.expanduser('~/Documents/houdini16.0')
+        # Really dodgy way of checking for the houdini version by counting down until we find valid houdinis
+        # Something tells me this won't be used in houdini 31, but who knows
+        for x in xrange(30, 0, -1):
+            versions = [x + (float(y) / 10) for y in range(0, 10)]
+            for v in versions:
+                houdiniprefs = os.path.join(homedir, 'Documents', 'houdini%s' % (v))
+                if os.path.exists(houdiniprefs):
+                    prefs.append(houdiniprefs)
 
-        elif platform.system() == 'Darwin':
-            return os.path.expanduser('~/Documents/houdini16.0')
+        return prefs
+
+        
 
     def install(self):
         userprefs = self.getPreferences()
+        if not userprefs:
+            print 'Can\'t find a Houdini preferences directory.'
+            return
 
         hou_plugin_src = os.path.realpath(os.path.join(self.cwd, 'src', 'AppPlugins', 'P4Houdini'))
-        hou_pythonrc_py_src = os.path.join(hou_plugin_src, 'python2.7libs', 'pythonrc.py')
+        # Houdini is only happy with /
+        src_env = 'HOUDINI_PATH = %s;&' % (hou_plugin_src.replace('\\', '/'))
+        
+        for userpref in userprefs:
+            self.appendToFile(src_env, os.path.join(userpref, 'houdini.env'))
 
-        hou_plugin_dst = os.path.join(userprefs, 'scripts', 'python', 'P4Houdini')
-        hou_pythonrc_py_dst = os.path.join(userprefs, 'scripts', 'python', 'pythonrc.py')
+        # hou_pythonrc_py_src = os.path.join(hou_plugin_src, 'python2.7libs', 'pythonrc.py')
 
-        if not os.path.exists(hou_plugin_dst):
-            os.makedirs(hou_plugin_dst)
+        # hou_plugin_dst = os.path.join(userprefs, 'scripts', 'python', 'P4Houdini')
+        # hou_pythonrc_py_dst = os.path.join(userprefs, 'scripts', 'python', 'pythonrc.py')
 
-        self.install_p4python(hou_plugin_dst)
-        self.install_perforce_module(hou_plugin_dst)
+        # if not os.path.exists(hou_plugin_dst):
+        #     os.makedirs(hou_plugin_dst)
 
-        logSymlink(hou_pythonrc_py_src, hou_pythonrc_py_dst)
+        # self.install_p4python(hou_plugin_dst)
+        # self.install_perforce_module(hou_plugin_dst)
+
+        # logSymlink(hou_pythonrc_py_src, hou_pythonrc_py_dst)
 
 
 
@@ -312,7 +339,7 @@ def install():
     apps = [ 
                 Maya(),
                 Nuke(),
-                Katana(),
+                # Katana(), #This is broken atm
                 Houdini()
             ]
     for app in apps:

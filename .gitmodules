@@ -1,3 +1,6 @@
 [submodule "src/perforce/Qt.py"]
 	path = src/perforce/Qt
 	url = https://github.com/mottosso/Qt.py.git
+[submodule "src/perforce/qtpy"]
+	path = src/perforce/qtpy
+	url = https://github.com/spyder-ide/qtpy.git
