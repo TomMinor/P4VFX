@@ -268,7 +268,6 @@ class FileRevisionUI(QtWidgets.QDialog):
                 with self.p4.at_exception_level(P4.RAISE_ERRORS):
                     fileInfo = self.p4.run_fstat(fullname)
 
-                Utils.p4Logger()
                 if fileInfo:
                     if 'otherLock' in fileInfo[0]:
                         self.statusBar.showMessage("{0} currently locked by {1}".format(
@@ -303,17 +302,10 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             self.tableWidget.setRowCount(len(self.fileRevisions))
 
-            # Populate table
-            for i, revision in enumerate(self.fileRevisions):
-                # Saves us manually keeping track of the current column
-                column = 0
-
-                # Fill in the rest of the data
-                change = "#{0}".format(revision['revision'])
-
+            def fillColumnA(value, column):
                 widget = QtWidgets.QWidget()
                 layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(change))
+                label = QtWidgets.QLabel(str(value))
 
                 layout.addWidget(label)
                 layout.setAlignment(QtCore.Qt.AlignCenter)
@@ -321,14 +313,11 @@ class FileRevisionUI(QtWidgets.QDialog):
                 widget.setLayout(layout)
 
                 self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
 
-                # User
-                user = revision['user']
-
+            def fillColumnB(value, column):
                 widget = QtWidgets.QWidget()
                 layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(user))
+                label = QtWidgets.QLabel(str(value))
                 label.setStyleSheet("QLabel { border: none } ")
 
                 layout.addWidget(label)
@@ -337,82 +326,38 @@ class FileRevisionUI(QtWidgets.QDialog):
                 widget.setLayout(layout)
 
                 self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
 
-                # Action
-                pendingAction = revision['action']
-
-
-                path = ""
-                if(pendingAction == "edit"):
-                    path = os.path.join(interop.getIconPath(), "File0440.png")
-                elif(pendingAction == "add"):
-                    path = os.path.join(interop.getIconPath(), "File0242.png")
-                elif(pendingAction == "delete"):
-                    path = os.path.join(interop.getIconPath(), "File0253.png")
-
+            def addLabelColumn(value, column, alignCenter=False, icon=None):
                 widget = QtWidgets.QWidget()
 
-                icon = QtGui.QPixmap(path)
-                icon = icon.scaled(16, 16)
-
-                iconLabel = QtWidgets.QLabel()
-                iconLabel.setPixmap(icon)
-                textLabel = QtWidgets.QLabel(pendingAction.capitalize())
-                textLabel.setStyleSheet("QLabel { border: none } ")
-
-                # @TODO Why not move these into a cute little function in a function
-
                 layout = QtWidgets.QHBoxLayout()
-                layout.addWidget(iconLabel)
-                layout.addWidget(textLabel)
                 layout.setAlignment(QtCore.Qt.AlignLeft)
-                # layout.setContentsMargins(0,0,0,0)
-                widget.setLayout(layout)
+                if alignCenter:
+                    layout.setAlignment(QtCore.Qt.AlignCenter)
+                    layout.setContentsMargins(4, 0, 4, 0)
 
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
+                textLabel = QtWidgets.QLabel(str(value))
+                textLabel.setStyleSheet("QLabel { border: none } ")
+                layout.addWidget(textLabel)
 
-                # Date
-                date = revision['date']
-
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(date))
-                label.setStyleSheet("QLabel { border: none } ")
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-
-                # Client
-                client = revision['client']
-
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(client))
-                label.setStyleSheet("QLabel { border: none } ")
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
+                if icon:
+                    iconPic = QtGui.QPixmap(icon)
+                    iconPic = iconPic.scaled(16, 16)
+                    iconLabel = QtWidgets.QLabel()
+                    iconLabel.setPixmap(iconPic)
+                    layout.addWidget(iconLabel)
 
                 widget.setLayout(layout)
 
                 self.tableWidget.setCellWidget(i, column, widget)
                 column += 1
+                return column
 
-                # Description
-                desc = revision['desc']
-
+            def addDescriptionColumn(value, column):
                 widget = QtWidgets.QWidget()
                 layout = QtWidgets.QHBoxLayout()
                 text = QtWidgets.QLineEdit()
-                text.setText(desc)
+                text.setText(value)
                 text.setReadOnly(True)
                 text.setAlignment(QtCore.Qt.AlignLeft)
                 text.setStyleSheet("QLineEdit { border: none ")
@@ -424,8 +369,29 @@ class FileRevisionUI(QtWidgets.QDialog):
 
                 self.tableWidget.setCellWidget(i, column, widget)
                 column += 1
+                return column
+
+            # Map a file action to the path of it's UI icon
+            actionToIcon = {
+                    'edit':     os.path.join(interop.getIconPath(), "File0440.png"),
+                    'add':      os.path.join(interop.getIconPath(), "File0242.png"),
+                    'delete':   os.path.join(interop.getIconPath(), "File0253.png")
+                }
+
+            # Populate table
+            for i, revision in enumerate(self.fileRevisions):
+                column = 0
+                column = addLabelColumn("#{0}".format(revision['revision']), column, alignCenter=True)
+                column = addLabelColumn(revision['user'], column, alignCenter=True)
+
+                pendingAction = revision['action']              
+                column = addLabelColumn(pendingAction.capitalize(), column, icon=actionToIcon.get(pendingAction))
+
+                column = addLabelColumn(revision['date'], column, alignCenter=True)
+                column = addLabelColumn(revision['client'], column, alignCenter=True)
+                column = addDescriptionColumn(revision['desc'], column)
 
             self.tableWidget.resizeColumnsToContents()
             self.tableWidget.resizeRowsToContents()
-            self.tableWidget.setColumnWidth(4, 90)
+            # self.tableWidget.setColumnWidth(4, 90)
             self.tableWidget.horizontalHeader().setStretchLastSection(True)
