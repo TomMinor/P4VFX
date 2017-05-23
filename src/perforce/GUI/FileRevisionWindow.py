@@ -210,6 +210,38 @@ class FileRevisionUI(QtWidgets.QDialog):
         except P4Exception as e:
             displayErrorUI(e)
 
+    def setRevisionTableColumn(self, row, column, value, icon=None, isLongText=False):
+        value = str(value)
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout()
+        layout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignHCenter)
+
+        # Use a QLineEdit to allow the text to be copied if the data is large
+        if isLongText:
+            textLabel = QtWidgets.QLineEdit()
+            textLabel.setText(value)
+            textLabel.setCursorPosition(0)
+            textLabel.setReadOnly(True)
+            textLabel.setStyleSheet("QLineEdit { border: none }")
+        else:
+            textLabel = QtWidgets.QLabel(value)
+            textLabel.setStyleSheet("QLabel { border: none } ")
+
+        # layout.setContentsMargins(4, 0, 4, 0)
+        
+        if icon:
+            iconPic = QtGui.QPixmap(icon)
+            iconPic = iconPic.scaled(16, 16)
+            iconLabel = QtWidgets.QLabel()
+            iconLabel.setPixmap(iconPic)
+            layout.addWidget(iconLabel)
+        layout.addWidget(textLabel)
+
+        widget.setLayout(layout)
+
+        self.tableWidget.setCellWidget(row, column, widget)
+
     def loadFileLog(self, *args):
         try:
             index = self.fileTree.selectedIndexes()
@@ -302,75 +334,6 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             self.tableWidget.setRowCount(len(self.fileRevisions))
 
-            def fillColumnA(value, column):
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(value))
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(0, 0, 0, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-
-            def fillColumnB(value, column):
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(value))
-                label.setStyleSheet("QLabel { border: none } ")
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-
-            def addLabelColumn(value, column, alignCenter=False, icon=None):
-                widget = QtWidgets.QWidget()
-
-                layout = QtWidgets.QHBoxLayout()
-                layout.setAlignment(QtCore.Qt.AlignLeft)
-                if alignCenter:
-                    layout.setAlignment(QtCore.Qt.AlignCenter)
-                    layout.setContentsMargins(4, 0, 4, 0)
-
-                textLabel = QtWidgets.QLabel(str(value))
-                textLabel.setStyleSheet("QLabel { border: none } ")
-                layout.addWidget(textLabel)
-
-                if icon:
-                    iconPic = QtGui.QPixmap(icon)
-                    iconPic = iconPic.scaled(16, 16)
-                    iconLabel = QtWidgets.QLabel()
-                    iconLabel.setPixmap(iconPic)
-                    layout.addWidget(iconLabel)
-
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-                return column
-
-            def addDescriptionColumn(value, column):
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                text = QtWidgets.QLineEdit()
-                text.setText(value)
-                text.setReadOnly(True)
-                text.setAlignment(QtCore.Qt.AlignLeft)
-                text.setStyleSheet("QLineEdit { border: none ")
-
-                layout.addWidget(text)
-                layout.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
-                layout.setContentsMargins(4, 0, 1, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-                return column
-
             # Map a file action to the path of it's UI icon
             actionToIcon = {
                     'edit':     os.path.join(interop.getIconPath(), "File0440.png"),
@@ -380,16 +343,17 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             # Populate table
             for i, revision in enumerate(self.fileRevisions):
-                column = 0
-                column = addLabelColumn("#{0}".format(revision['revision']), column, alignCenter=True)
-                column = addLabelColumn(revision['user'], column, alignCenter=True)
+                columns = [ 
+                        ("#{0}".format(revision['revision']), None, False),
+                        (revision['user'],  None, False),
+                        (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
+                        (revision['date'], None, False),
+                        (revision['client'], None, False),
+                        (revision['desc'], None, True)
+                    ]
 
-                pendingAction = revision['action']              
-                column = addLabelColumn(pendingAction.capitalize(), column, icon=actionToIcon.get(pendingAction))
-
-                column = addLabelColumn(revision['date'], column, alignCenter=True)
-                column = addLabelColumn(revision['client'], column, alignCenter=True)
-                column = addDescriptionColumn(revision['desc'], column)
+                for j, data in enumerate(columns):
+                    self.setRevisionTableColumn(i, j, *data)
 
             self.tableWidget.resizeColumnsToContents()
             self.tableWidget.resizeRowsToContents()
