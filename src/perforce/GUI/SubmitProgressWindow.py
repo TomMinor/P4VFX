@@ -94,7 +94,7 @@ class SubmitProgressUI(QtWidgets.QDialog):
         '''
         Create the signal/slot connections
         '''
-        # self.fileTree.clicked.connect( self.loadFileLog )
+        # self.fileTree.clicked.connect( self.populateFileRevisions )
         self.quitBtn.clicked.connect(self.cancelProgress)
 
     #--------------------------------------------------------------------------

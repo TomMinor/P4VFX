@@ -40,6 +40,10 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
+        self.getRevisionBtn.setVisible(False)
+        self.getLatestBtn.setVisible(False)
+        self.getPreviewBtn.setVisible(False)
+
         # self.model = QtWidgets.QFileSystemModel()
         # self.model.setRootPath(self.p4.cwd)
 
@@ -82,7 +86,7 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         if interop.getCurrentSceneFile():
             # self.fileTree.setCurrentIndex(self.model.index(interop.getCurrentSceneFile()))
-            self.loadFileLog()
+            self.populateFileRevisions()
 
     def create_layout(self):
         '''
@@ -114,7 +118,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         '''
         Create the signal/slot connections
         '''
-        self.fileTree.clicked.connect(self.loadFileLog)
+        self.fileTree.clicked.connect(self.populateFileRevisions)
         self.fileTree.expanded.connect(self.onExpandedFolder)
         self.getLatestBtn.clicked.connect(self.onSyncLatest)
         self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
@@ -164,6 +168,10 @@ class FileRevisionUI(QtWidgets.QDialog):
         except P4Exception as e:
             displayErrorUI(e)
 
+    def clearRevisions(self):
+        self.tableWidget.clearContents()
+        self.tableWidget.setRowCount(0)
+
     def getSelectedTreeItemData(self):
         index = self.fileTree.selectedIndexes()[0]
         if not index.isValid():
@@ -193,7 +201,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if CmdsChangelist.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
             QtWidgets.QMessageBox.information(interop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
-        self.loadFileLog()
+        self.populateFileRevisions()
 
     def onSyncLatest(self, *args):
         data = self.getSelectedTreeItemData()
@@ -206,7 +214,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         try:
             self.p4.run_sync("-f", filePath)
             Utils.p4Logger().info("{0} synced to latest version".format(filePath))
-            self.loadFileLog()
+            self.populateFileRevisions()
         except P4Exception as e:
             displayErrorUI(e)
 
@@ -242,120 +250,128 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         self.tableWidget.setCellWidget(row, column, widget)
 
-    def loadFileLog(self, *args):
+    def populateFileRevisions(self, *args):
+        self.statusBar.showMessage("")
+
         try:
             index = self.fileTree.selectedIndexes()
         except IndexError as e:
             Utils.p4Logger().error(e)
-            # return
             raise
 
-        if not index:
+        if not index or not index[0].internalPointer().data:
             return
         index = index[0]
 
-        self.statusBar.showMessage("")
-
-
-        self.getPreviewBtn.setEnabled(True)
-
-        if not index.internalPointer().data:
-            return
-        
         try:
             name, filetype, time, action, change, fullname = index.internalPointer().data
         except ValueError as e:
             Utils.p4Logger().info(index.internalPointer().data)
             raise e
 
+
+        self.getRevisionBtn.setEnabled(False)
+        self.getLatestBtn.setEnabled(False)
+        self.getPreviewBtn.setEnabled(False)
+
+        if filetype == 'Folder':
+            self.getRevisionBtn.setVisible(False)
+            self.getLatestBtn.setVisible(False)
+            self.getPreviewBtn.setVisible(False)
+            self.isSceneFile = False
+            self.clearRevisions()
+            return
+        else:
+            self.getRevisionBtn.setVisible(True)
+            self.getLatestBtn.setVisible(True)
+            self.getPreviewBtn.setVisible(True)
+
         if Utils.queryFileExtension(fullname, interop.getSceneFiles() ):
             self.getPreviewBtn.setEnabled(True)
             self.getPreviewBtn.setText("Preview Scene Revision")
             self.isSceneFile = True
         else:
-            self.getPreviewBtn.setEnabled(False)
             self.getPreviewBtn.setText("Preview File Revision")
             self.isSceneFile = False
 
 
-        if filetype == 'Folder':
-            return
-        else:
-            try:
+        try:
+            with self.p4.at_exception_level(P4.RAISE_ERRORS):
                 files = self.p4.run_filelog("-l", fullname)
-            except P4Exception as e:
-                # TODO - Better error handling here, what if we can't connect etc
-                #eMsg, type = parsePerforceError(e)
-                self.statusBar.showMessage(
-                    "{0} isn't on client".format(os.path.basename(fullname)))
-                self.tableWidget.clearContents()
-                self.getLatestBtn.setEnabled(False)
-                self.getPreviewBtn.setEnabled(False)
-                return
+        except P4Exception as e:
+            # TODO - Better error handling here, what if we can't connect etc
+            #eMsg, type = parsePerforceError(e)
+            self.statusBar.showMessage("{0} isn't on client".format(os.path.basename(fullname)))
+            self.clearRevisions()
+            self.getLatestBtn.setEnabled(False)
+            self.getPreviewBtn.setEnabled(False)
+            return
 
-            self.getLatestBtn.setEnabled(True)
-            self.getPreviewBtn.setEnabled(True)
+        self.getLatestBtn.setEnabled(True)
+        self.getPreviewBtn.setEnabled(True)
 
-            try:
-                with self.p4.at_exception_level(P4.RAISE_ERRORS):
-                    fileInfo = self.p4.run_fstat(fullname)
+        try:
+            with self.p4.at_exception_level(P4.RAISE_ERRORS):
+                p4FileInfo = self.p4.run_fstat(fullname)
 
-                if fileInfo:
-                    if 'otherLock' in fileInfo[0]:
-                        self.statusBar.showMessage("{0} currently locked by {1}".format(
-                            os.path.basename(fullname), fileInfo[0]['otherLock'][0]))
-                        if fileInfo[0]['otherLock'][0].split('@')[0] != self.p4.user:
-                            self.getRevisionBtn.setEnabled(False)
-                    elif 'otherOpen' in fileInfo[0]:
-                        self.statusBar.showMessage("{0} currently opened by {1}".format(
-                            os.path.basename(fullname), fileInfo[0]['otherOpen'][0]))
-                        if fileInfo[0]['otherOpen'][0].split('@')[0] != self.p4.user:
-                            self.getRevisionBtn.setEnabled(False)
-                    else:
-                        self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(
-                            os.path.basename(fullname),  self.p4.user, self.p4.client))
-                        self.getRevisionBtn.setEnabled(True)
+            if p4FileInfo:
+                fileInfo = p4FileInfo[0]
+                
+                if 'otherLock' in fileInfo:
+                    self.statusBar.showMessage("{0} currently locked by {1}".format(os.path.basename(fullname), fileInfo['otherLock'][0]))
 
-            except P4Exception:
-                self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(fullname)))
-                self.getRevisionBtn.setEnabled(True)
+                    if fileInfo['otherLock'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                elif 'otherOpen' in fileInfo:
+                    self.statusBar.showMessage("{0} currently opened by {1}".format(os.path.basename(fullname), fileInfo['otherOpen'][0]))
 
-            # Generate revision dictionary
-            self.fileRevisions = []
+                    if fileInfo['otherOpen'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                else:
+                    self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(os.path.basename(fullname),  self.p4.user, self.p4.client))
+                    self.getRevisionBtn.setEnabled(True)
 
-            for revision in files[0].each_revision():
-                self.fileRevisions.append({"revision": revision.rev,
-                                           "action": revision.action,
-                                           "date": revision.time,
-                                           "desc": revision.desc,
-                                           "user": revision.user,
-                                           "client": revision.client
-                                           })
+        except P4Exception:
+            self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(fullname)))
+            self.getRevisionBtn.setEnabled(True)
 
-            self.tableWidget.setRowCount(len(self.fileRevisions))
+        # Generate revision dictionary
+        self.fileRevisions = []
 
-            # Map a file action to the path of it's UI icon
-            actionToIcon = {
-                    'edit':     os.path.join(interop.getIconPath(), "File0440.png"),
-                    'add':      os.path.join(interop.getIconPath(), "File0242.png"),
-                    'delete':   os.path.join(interop.getIconPath(), "File0253.png")
-                }
+        for revision in files[0].each_revision():
+            self.fileRevisions.append({"revision": revision.rev,
+                                       "action": revision.action,
+                                       "date": revision.time,
+                                       "desc": revision.desc,
+                                       "user": revision.user,
+                                       "client": revision.client
+                                       })
 
-            # Populate table
-            for i, revision in enumerate(self.fileRevisions):
-                columns = [ 
-                        ("#{0}".format(revision['revision']), None, False),
-                        (revision['user'],  None, False),
-                        (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
-                        (revision['date'], None, False),
-                        (revision['client'], None, False),
-                        (revision['desc'], None, True)
-                    ]
+        self.tableWidget.setRowCount(len(self.fileRevisions))
 
-                for j, data in enumerate(columns):
-                    self.setRevisionTableColumn(i, j, *data)
+        # Map a file action to the path of it's UI icon
+        actionToIcon = {
+                'edit':         os.path.join(interop.getIconPath(), "File0440.png"),
+                'add':          os.path.join(interop.getIconPath(), "File0242.png"),
+                'delete':       os.path.join(interop.getIconPath(), "File0253.png"),
+                'move/delete':  os.path.join(interop.getIconPath(), "File0253.png"),
+                'purge':        os.path.join(interop.getIconPath(), "File0253.png")
+            }
 
-            self.tableWidget.resizeColumnsToContents()
-            self.tableWidget.resizeRowsToContents()
-            # self.tableWidget.setColumnWidth(4, 90)
-            self.tableWidget.horizontalHeader().setStretchLastSection(True)
+        # Populate table
+        for i, revision in enumerate(self.fileRevisions):
+            columns = [ 
+                    ("#{0}".format(revision['revision']), None, False),
+                    (revision['user'],  None, False),
+                    (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
+                    (revision['date'], None, False),
+                    (revision['client'], None, False),
+                    (revision['desc'], None, True)
+                ]
+
+            for j, data in enumerate(columns):
+                self.setRevisionTableColumn(i, j, *data)
+
+        self.tableWidget.resizeColumnsToContents()
+        self.tableWidget.resizeRowsToContents()
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)

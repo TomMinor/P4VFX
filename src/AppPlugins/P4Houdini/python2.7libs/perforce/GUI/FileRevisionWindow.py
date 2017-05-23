@@ -82,7 +82,7 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         if interop.getCurrentSceneFile():
             # self.fileTree.setCurrentIndex(self.model.index(interop.getCurrentSceneFile()))
-            self.loadFileLog()
+            self.populateFileRevisions()
 
     def create_layout(self):
         '''
@@ -114,7 +114,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         '''
         Create the signal/slot connections
         '''
-        self.fileTree.clicked.connect(self.loadFileLog)
+        self.fileTree.clicked.connect(self.populateFileRevisions)
         self.fileTree.expanded.connect(self.onExpandedFolder)
         self.getLatestBtn.clicked.connect(self.onSyncLatest)
         self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
@@ -193,7 +193,7 @@ class FileRevisionUI(QtWidgets.QDialog):
         if CmdsChangelist.syncPreviousRevision(self.p4, filePath, rollbackRevision, desc):
             QtWidgets.QMessageBox.information(interop.main_parent_window(), "Success", "Successful {0}".format(desc))
 
-        self.loadFileLog()
+        self.populateFileRevisions()
 
     def onSyncLatest(self, *args):
         data = self.getSelectedTreeItemData()
@@ -206,11 +206,11 @@ class FileRevisionUI(QtWidgets.QDialog):
         try:
             self.p4.run_sync("-f", filePath)
             Utils.p4Logger().info("{0} synced to latest version".format(filePath))
-            self.loadFileLog()
+            self.populateFileRevisions()
         except P4Exception as e:
             displayErrorUI(e)
 
-    def loadFileLog(self, *args):
+    def populateFileRevisions(self, *args):
         try:
             index = self.fileTree.selectedIndexes()
         except IndexError as e:
