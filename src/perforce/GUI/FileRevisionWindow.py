@@ -8,13 +8,12 @@ from perforce.PerforceUtils import CmdsChangelist
 from perforce.AppInterop import interop
 import DepotClientViewModel
 
-class FileRevisionUI(QtWidgets.QDialog):
+class BaseRevisionTab(QtWidgets.QWidget):
+    def __init__(self, p4, parent=None):
+        super(BaseRevisionTab, self).__init__(parent)
 
-    def __init__(self, parent=interop.main_parent_window()):
-        super(FileRevisionUI, self).__init__(parent)
-
-    def create(self, p4, files=[]):
         self.p4 = p4
+        self.showDeleted = True
 
         path = os.path.join(interop.getIconPath(), "p4.png")
         icon = QtGui.QIcon(path)
@@ -25,9 +24,15 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         self.fileRevisions = []
 
+    def create(self):
         self.create_controls()
         self.create_layout()
         self.create_connections()
+
+    def setRoot(self, root):
+        self.root = root
+        self.model = DepotClientViewModel.PerforceItemModel(self.p4)
+        self.model.populate(self.root, showDeleted=self.showDeleted)
 
     def create_controls(self):
         '''
@@ -44,13 +49,10 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getLatestBtn.setVisible(False)
         self.getPreviewBtn.setVisible(False)
 
-        # self.model = QtWidgets.QFileSystemModel()
-        # self.model.setRootPath(self.p4.cwd)
-
         # self.root = "//{0}".format(self.p4.client)
-        self.root = "//depot"
-        self.model = DepotClientViewModel.PerforceItemModel(self.p4)
-        self.model.populate(self.root, showDeleted=False)
+        # self.root = "//depot"
+        # self.model = DepotClientViewModel.PerforceItemModel(self.p4)
+        # self.model.populate(self.root, showDeleted=False)
         # self.model.populate('//depot', showDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
@@ -375,3 +377,75 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.resizeRowsToContents()
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
+
+class ClientRevisionTab(BaseRevisionTab):
+    def __init__(self, p4, parent=None):
+        super(ClientRevisionTab, self).__init__(p4, parent)
+
+        self.setRoot( "//{0}".format(self.p4.client) )
+
+class DepotRevisionTab(BaseRevisionTab):
+    def __init__(self, p4, parent=None):
+        super(DepotRevisionTab, self).__init__(p4, parent)
+
+        self.setRoot( "//depot" )
+
+class FileRevisionUI(QtWidgets.QWidget):
+    def __init__(self, p4, parent=None):
+        super(FileRevisionUI, self).__init__(parent)
+
+        self.p4 = p4
+
+        path = os.path.join(interop.getIconPath(), "p4.png")
+        icon = QtGui.QIcon(path)
+
+        self.setWindowTitle("File Revisions")
+        self.setWindowIcon(icon)
+        self.setWindowFlags(QtCore.Qt.Window)
+
+        self.fileRevisions = []
+
+    def create(self):
+        self.create_controls()
+        self.create_layout()
+        self.create_connections()
+
+    def create_controls(self):
+        '''
+        Create the widgets for the dialog
+        '''
+        self.tabwidget = QtWidgets.QTabWidget()
+        self.clientTab = ClientRevisionTab(self.p4)
+        self.clientTab.create()
+        self.depotTab = DepotRevisionTab(self.p4)
+        self.depotTab.create()
+        self.tabwidget.addTab( self.clientTab, 'Client' )
+        self.tabwidget.addTab( self.depotTab , 'Depot' )
+
+    def create_layout(self):
+        '''
+        Create the layouts and add widgets
+        '''
+        check_box_layout = QtWidgets.QHBoxLayout()
+        check_box_layout.setContentsMargins(2, 2, 2, 2)
+
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout.addWidget(self.tabwidget)
+
+        # main_layout.addLayout(bottomLayout)
+        # main_layout.addWidget(self.horizontalLine)
+        # main_layout.addWidget(self.statusBar)
+
+        self.setLayout(main_layout)
+
+    def create_connections(self):
+        '''
+        Create the signal/slot connections
+        '''
+        pass
+        # self.fileTree.clicked.connect(self.populateFileRevisions)
+        # self.fileTree.expanded.connect(self.onExpandedFolder)
+        # self.getLatestBtn.clicked.connect(self.onSyncLatest)
+        # self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
+        # self.getPreviewBtn.clicked.connect(self.getPreview)

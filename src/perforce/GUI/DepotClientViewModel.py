@@ -160,7 +160,7 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
         self.rootItem = PerforceItem(None)
         self.showDeleted = showDeleted
 
-        self.populateSubDir()
+        self.populateSubDir(idx=None, root=rootdir)
 
     def populateSubDir(self, idx=None, root="//depot", showDeleted=False):
         # Overcomplicated way to figure out if idx is root or not
@@ -200,12 +200,24 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
                 Utils.p4Logger().debug('\t%s' % childDir )
                 treeItem.appendFolderItem(childDir)
 
+            # p4subfiles = self.p4Filelist(dirpath)
+            if not isDepotPath:
+                # Utils.p4Logger().debug( self.p4.run('-F', '%clientRoot%', '-ztag', 'info') )
+                client_root = self.p4.run_info()[0]['clientRoot']
+                dirpath = dirpath.replace("//{0}".format(self.p4.client), client_root)
+            fstat_args = ['-Olhp', dirpath]
+            # if not showDeleted:
+                # fstat_args.insert(1, '-F "^headAction=delete & ^headAction=move/delete"')
+            Utils.p4Logger().debug(fstat_args)                
 
-            p4subfiles = self.p4Filelist(dirpath)
-            Utils.p4Logger().debug('p4FileList(%s) = ' % dirpath)
+            p4subfiles = self.p4.run_fstat(*fstat_args)
+            Utils.p4Logger().debug('p4 fstat %s = %s' % (' '.join(fstat_args), p4subfiles))
+            # Depot
+            # {'isMapped': '', 'haveRev': '7', 'headAction': 'edit', 'headModTime': '1495161763', 'clientFile': '//tminor_desktop/.p4ignore.txt', 'headRev': '7', 'headTime': '1495163646', 'headChange': '202', 'path': 'F:/bioh4zard_workspace\\.p4ignore.txt', 'digest': 'A9A333C620586557F144E533674D548D', 'depotFile': '//depot/.p4ignore.txt', 'headType': 'text', 'fileSize': '11'}]
             for f in p4subfiles:
                 Utils.p4Logger().debug('\t%s' % f)
-                treeItem.appendFileItem( f['name'], f['type'], f['time'], f['action'], f['change'] )
+                filepath = f['depotFile'] if isDepotPath else f['clientFile']
+                treeItem.appendFileItem( filepath, f['headType'], f['headTime'], f['headAction'], f['headRev'] )
 
         Utils.p4Logger().debug('\n\n')
 

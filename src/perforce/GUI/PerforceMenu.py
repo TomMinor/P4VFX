@@ -423,12 +423,12 @@ class MainShelf:
         except:
             pass
 
-        self.revisionUi = FileRevisionWindow.FileRevisionUI()
+        self.revisionUi = FileRevisionWindow.FileRevisionUI(self.p4)
 
         # Delete the UI if errors occur to avoid causing winEvent and event
         # errors (in Maya 2014)
         try:
-            self.revisionUi.create(self.p4)
+            self.revisionUi.create()
             self.revisionUi.show()
         except:
             self.revisionUi.deleteLater()
