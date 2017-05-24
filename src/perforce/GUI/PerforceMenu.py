@@ -213,8 +213,13 @@ class MainShelf:
     def createWorkspace(self, *args):
         workspaceRoot = None
 
+        # @ToDo remove this, it's badly written right now. 
+        # Safer to use P4V for the initial setup to rewrite this to be more reliable
+
+        # Give the artist 3 chances to choose a folder (assuming they choose a bad path)
+        tries = 3
         i = 0
-        while i < 3:
+        while i < tries:
             workspaceRoot = QtWidgets.QFileDialog.getExistingDirectory(
                 interop.main_parent_window(), "Specify workspace root folder")
             i += 1
@@ -238,7 +243,6 @@ class MainShelf:
     # Open up a sandboxed QFileDialog and run a command on all the selected
     # files (and log the output)
     def __processClientFile(self, title, finishCallback, preCallback, p4command, *p4args):
-        print self.p4.cwd
         fileDialog = QtWidgets.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
         def onEnter(*args):
@@ -263,8 +267,7 @@ class MainShelf:
                             Utils.p4Logger().warning(e)
                             error = e
                     else:
-                        Utils.p4Logger().warning(
-                            "{0} is not in client root.".format(file))
+                        Utils.p4Logger().warning("{0} is not in client root.".format(file))
 
             fileDialog.deleteLater()
             if finishCallback:
@@ -275,8 +278,9 @@ class MainShelf:
         fileDialog.finished.connect(onComplete)
         fileDialog.show()
 
-    # Open up a sandboxed QFileDialog and run a command on all the selected folders (and log the output)
-    # %TODO This should be refactored
+    # Open up a QFileDialog sandboxed to only allow files relative to the workspace
+    # and run a command on all the selected folders (and log the output)
+    # %TODO This should be refactored to use the same code as __processClientFile
     def __processClientDirectory(self, title, finishCallback, preCallback, p4command, *p4args):
         fileDialog = QtWidgets.QFileDialog(interop.main_parent_window(), title, str(self.p4.cwd))
 
@@ -302,8 +306,7 @@ class MainShelf:
                             Utils.p4Logger().warning(e)
                             error = e
                     else:
-                        Utils.p4Logger().warning(
-                            "{0} is not in client root.".format(file))
+                        Utils.p4Logger().warning("{0} is not in client root.".format(file))
 
             fileDialog.deleteLater()
             if finishCallback:
@@ -320,16 +323,18 @@ class MainShelf:
                 if len(selected) == 1 and Utils.queryFileExtension(selected[0], interop.getSceneFiles()):
                     if not interop.getCurrentSceneFile() == selected[0]:
                         result = QtWidgets.QMessageBox.question(
-                            interop.main_parent_window(), "Open Scene?", "Do you want to open the checked out scene?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+                                    interop.main_parent_window(),
+                                    "Open Scene?",
+                                    "Do you want to open the checked out scene?",
+                                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+
                         if result == QtWidgets.QMessageBox.StandardButton.Yes:
                             interop.openScene(selected[0])
 
-        self.__processClientFile(
-            "Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
+        self.__processClientFile("Checkout file(s)", openFirstFile, None, self.run_checkoutFile)
 
     def checkoutFolder(self, *args):
-        self.__processClientDirectory(
-            "Checkout file(s)", None, None, self.run_checkoutFolder)
+        self.__processClientDirectory("Checkout file(s)", None, None, self.run_checkoutFolder)
 
     def run_checkoutFolder(self, *args):
         allFiles = []
@@ -347,6 +352,7 @@ class MainShelf:
             Utils.p4Logger().info("Processing {0}...".format(file))
             result = None
             try:
+                # @ToDO set this up to use p4.at_exception_level
                 result = self.p4.run_fstat(file)
             except P4Exception as e:
                 pass
@@ -354,8 +360,7 @@ class MainShelf:
             try:
                 if result:
                     if 'otherLock' in result[0]:
-                        raise P4Exception("[Warning]: {0} already locked by {1}\"".format(
-                            file, result[0]['otherLock'][0]))
+                        raise P4Exception("[Warning]: {0} already locked by {1}\"".format(file, result[0]['otherLock'][0]))
                     else:
                         Utils.p4Logger().info(self.p4.run_edit(file))
                         Utils.p4Logger().info(self.p4.run_lock(file))
@@ -384,51 +389,9 @@ class MainShelf:
         raise NotImplementedError(
             "Scene lock not implemented (use regular lock)")
 
-        # file = interop.getCurrentSceneFile()
-
-        # if not file:
-        #     Utils.p4Logger().warning("Current scene has no name")
-        #     return
-
-        # if not Utils.isPathInClientRoot(self.p4, file):
-        #     Utils.p4Logger().warning("{0} is not in client root".format(file))
-        #     return
-
-        # try:
-        #     self.p4.run_lock(file)
-        #     Utils.p4Logger().info("Locked file {0}".format(file))
-
-        #     #@todo Move these into MayaUtils.py
-        #     # cmds.menuItem(self.unlockFile, edit=True, en=True)
-        #     # cmds.menuItem(self.lockFile, edit=True, en=False)
-        # except P4Exception as e:
-        #     displayErrorUI(e)
-
     def unlockThisFile(self, *args):
         raise NotImplementedError(
             "Scene unlock not implemented (use regular unlock)")
-
-        # file = interop.getCurrentSceneFile()
-
-        # if not file:
-        #     Utils.p4Logger().warning("Current scene has no name")
-        #     return
-
-        # if not Utils.isPathInClientRoot(self.p4, file):
-        #     Utils.p4Logger().warning("{0} is not in client root".format(file))
-        #     return
-
-        # try:
-        #     self.p4.run_unlock( file )
-        #     Utils.p4Logger().info("Unlocked file {0}".format(file))
-
-        #     # cmds.menuItem(self.unlockFile, edit=True, en=False)
-        #     # cmds.menuItem(self.lockFile, edit=True, en=True)
-        # except P4Exception as e:
-        #     displayErrorUI(e)
-
-    # def syncFile(self, *args):
-    #     self.__processClientFile("Sync file(s)", self.p4.run_sync)
 
     def querySceneStatus(self, *args):
         try:
@@ -437,10 +400,10 @@ class MainShelf:
                 Utils.p4Logger().warning("Current scene file isn't saved.")
                 return
 
-            result = self.p4.run_fstat("-Oa", scene)[0]
-            text = ""
-            for x in result:
-                text += ("{0} : {1}\n".format(x, result[x]))
+            with self.p4.at_exception_level(P4.RAISE_ERRORS):
+                result = self.p4.run_fstat("-Oa", scene)[0]
+            text = ''.join( ["{0} : {1}\n".format(x, result[x]) for x in result] )
+
             QtWidgets.QMessageBox.information(interop.main_parent_window(), "Scene Info", text)
         except P4Exception as e:
             displayErrorUI(e)
@@ -448,9 +411,8 @@ class MainShelf:
     def queryServerStatus(self, *args):
         try:
             result = self.p4.run_info()[0]
-            text = ""
-            for x in result:
-                text += ("{0} : {1}\n".format(x, result[x]))
+            text = ''.join( ["{0} : {1}\n".format(x, result[x]) for x in result] )
+
             QtWidgets.QMessageBox.information(interop.main_parent_window(), "Server Info", text)
         except P4Exception as e:
             displayErrorUI(e)
