@@ -59,6 +59,15 @@ class MainShelf:
             print "Error disconnecting P4 daemon : ", e
 
     def validateConnected(self, function, *args):
+        with self.p4.at_exception_level(P4.RAISE_ERRORS):
+            try:
+                result = self.p4.run_login('-s')
+            except P4Exception as e:
+                Utils.p4Logger().info('Connected to server, but no login session. Disconnecting and attempting to login again.')
+                with self.p4.at_exception_level(P4.RAISE_NONE):
+                    self.p4.disconnect()
+            
+
         if not self.p4.connected():
             # QtWidgets.QMessageBox.critical(None, 'Perforce Error', "Not connected to Perforce server, please connect first.", QtWidgets.QMessageBox.Warning)
             self.connectToServer(args)
