@@ -382,7 +382,8 @@ class ClientRevisionTab(BaseRevisionTab):
     def __init__(self, p4, parent=None):
         super(ClientRevisionTab, self).__init__(p4, parent)
 
-        self.setRoot( "//{0}".format(self.p4.client) )
+        # self.setRoot( "//{0}".format(self.p4.client) )
+        self.setRoot( self.p4.run_info()[0]['clientRoot'].replace('\\', '/') )
 
 class DepotRevisionTab(BaseRevisionTab):
     def __init__(self, p4, parent=None):

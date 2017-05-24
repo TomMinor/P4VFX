@@ -71,6 +71,9 @@ class MainShelf:
         if not self.p4.connected():
             # QtWidgets.QMessageBox.critical(None, 'Perforce Error', "Not connected to Perforce server, please connect first.", QtWidgets.QMessageBox.Warning)
             self.connectToServer(args)
+        else:
+            # A little heavy handed, but forces the cwd to the client root even if we have a valid login ticket
+            self.p4.cwd = self.p4.run_info()[0]['clientRoot'].replace('\\', '/')
 
         if not self.p4.connected():
             QtWidgets.QMessageBox.critical(None, 'Perforce Error', "Can't connect to server, check 'p4 set' for more information about what could be wrong", QtWidgets.QMessageBox.Warning)

@@ -73,88 +73,12 @@ class PerforceItem(object):
         return 0
 
 class PerforceItemModel(QtCore.QAbstractItemModel):
-
     def __init__(self, p4, parent=None):
         super(PerforceItemModel, self).__init__(parent)
 
         self.p4 = p4
         self.rootItem = PerforceItem(None)
         self.showDeleted = False
-
-    
-
-    def perforceListDir(self, p4path):
-        result = []
-
-        if p4path[-1] == '/' or p4path[-1] == '\\':
-            p4path = p4path[:-1]
-
-        path = "{0}/{1}".format(p4path, '*')
-
-        isDepotPath = p4path.startswith("//depot")
-
-
-        dirs = []
-        with self.p4.at_exception_level(P4.RAISE_ERRORS):
-            dirs = self.p4.run_dirs(path)
-
-        files = []
-        with self.p4.at_exception_level(P4.RAISE_ERRORS):
-            if isDepotPath:
-                files = self.p4.run_files(path)
-            else:
-                tmp = self.p4.run_have(path)
-                for fileItem in tmp:
-                    files += self.p4.run_fstat(fileItem['clientFile'])
-
-        result = []
-
-        for dir in dirs:
-            if isDepotPath:
-                dirName = dir['dir'][8:]
-            else:
-                dirName = dir['dir']
-
-            tmp = {'name': os.path.basename(dirName),
-                   'path': dir['dir'],
-                   'time': '',
-                   'type': 'Folder',
-                   'change': ''
-                   }
-            result.append(tmp)
-
-        for fileItem in files:
-            if isDepotPath:
-                deleteTest = self.p4.run("filelog", "-t", fileItem['depotFile'])[0]
-                isDeleted = deleteTest['action'][0] == "delete"
-                fileType = fileItem['type']
-                if isDeleted:
-                    fileType = "{0} [Deleted]".format(fileType)
-                # Remove //depot/ from the path for the 'pretty' name
-                tmp = {'name': os.path.basename(fileItem['depotFile'][8:]),
-                       'path': fileItem['depotFile'],
-                       'time': epochToTimeStr(fileItem['time']),
-                       'type': fileType,
-                       'change': fileItem['change']
-                       }
-                result.append(tmp)
-            else:
-                deleteTest = self.p4.run("filelog", "-t", fileItem['clientFile'])[0]
-                isDeleted = deleteTest['action'][0] == "delete"
-                fileType = fileItem['headType']
-                if isDeleted:
-                    fileType = "{0} [Deleted]".format(fileType)
-                tmp = {'name': os.path.basename(fileItem['clientFile']),
-                       'path': fileItem['clientFile'],
-                       'time': epochToTimeStr(fileItem['headModTime']),
-                       'type': fileType,
-                       'change': fileItem['headChange']
-                       }
-                result.append(tmp)
-
-        return sorted(result, key=lambda k: k['name'])
-
-    
 
     def populate(self, rootdir, showDeleted=False):
         self.rootItem = PerforceItem(None)
@@ -164,7 +88,7 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
 
     def populateSubDir(self, idx=None, root="//depot", showDeleted=False):
         # Overcomplicated way to figure out if idx is root or not
-        # Would be better to check if .parent() and if not return the root path
+        # Would be better to check if .parent() exists and if not return the root path
         if idx:
             idxPathModel = fullPath(idx)
             idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
@@ -185,39 +109,47 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
             treeItem = self.rootItem
 
         isDepotPath = root.startswith("//depot")
+        isClientPath = not isDepotPath
 
         dirpath = '/'.join([p4path,'*'])
 
         with self.p4.at_exception_level(P4.RAISE_ERRORS):
-            args = [dirpath]
-            if isDepotPath:
-                args.insert(0, '-H')
-            p4subdirs = [childDir['dir'] for childDir in self.p4.run_dirs(*args)]
-
-            # Add the sub directories first
-            Utils.p4Logger().debug('p4.run_dirs(%s) =' % (p4path) )
-            for childDir in p4subdirs:
-                Utils.p4Logger().debug('\t%s' % childDir )
-                treeItem.appendFolderItem(childDir)
-
-            # p4subfiles = self.p4Filelist(dirpath)
-            if not isDepotPath:
-                # Utils.p4Logger().debug( self.p4.run('-F', '%clientRoot%', '-ztag', 'info') )
-                client_root = self.p4.run_info()[0]['clientRoot']
-                dirpath = dirpath.replace("//{0}".format(self.p4.client), client_root)
-            fstat_args = ['-Olhp', dirpath]
+            fstat_args = ['-Olhp', '-Dl', dirpath]
             # if not showDeleted:
-                # fstat_args.insert(1, '-F "^headAction=delete & ^headAction=move/delete"')
-            Utils.p4Logger().debug(fstat_args)                
+            #     fstat_args.insert(1, '-F "^headAction=delete & ^headAction=move/delete"')
+            p4fstat = self.p4.run_fstat(*fstat_args)
 
-            p4subfiles = self.p4.run_fstat(*fstat_args)
-            Utils.p4Logger().debug('p4 fstat %s = %s' % (' '.join(fstat_args), p4subfiles))
-            # Depot
-            # {'isMapped': '', 'haveRev': '7', 'headAction': 'edit', 'headModTime': '1495161763', 'clientFile': '//tminor_desktop/.p4ignore.txt', 'headRev': '7', 'headTime': '1495163646', 'headChange': '202', 'path': 'F:/bioh4zard_workspace\\.p4ignore.txt', 'digest': 'A9A333C620586557F144E533674D548D', 'depotFile': '//depot/.p4ignore.txt', 'headType': 'text', 'fileSize': '11'}]
-            for f in p4subfiles:
-                Utils.p4Logger().debug('\t%s' % f)
+            files = []
+            folders = []
+            for f in p4fstat:
+                # p4 fstat can return directory information as well
+                if f.get('dir'):
+                    folders.append(f)
+                else:
+                    files.append(f)
+
+            # Show pending changelist files in client view
+            if isClientPath:
+                clientRoot = "//{0}".format(self.p4.client)
+                workspaceRoot = self.p4.run_info()[0]['clientRoot'].replace('\\', '/')
+                clientPath = p4path.replace(workspaceRoot, clientRoot)
+
+                p4opened = self.p4.run_opened()
+                for p in p4opened:
+                    filepath = p['clientFile']
+                    Utils.p4Logger().debug('Pending: %s' % filepath)
+                    treeItem.appendFileItem( filepath, p['type'], '', p['action'], p['rev'] )
+                    Utils.p4Logger().debug('%s : %s' % (clientPath, os.path.dirname(p['clientFile'])) )
+
+            for f in folders:
+                Utils.p4Logger().debug('Dir: \t%s' % f['dir'] )
+                treeItem.appendFolderItem(f['dir'])
+            
+            for f in files:
                 filepath = f['depotFile'] if isDepotPath else f['clientFile']
+                Utils.p4Logger().debug('File: \t%s' % filepath)
                 treeItem.appendFileItem( filepath, f['headType'], f['headTime'], f['headAction'], f['headRev'] )
+                
 
         Utils.p4Logger().debug('\n\n')
 
