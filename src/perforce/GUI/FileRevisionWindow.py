@@ -339,41 +339,42 @@ class BaseRevisionTab(QtWidgets.QWidget):
         # Generate revision dictionary
         self.fileRevisions = []
 
-        Utils.p4Logger().debug( 'filelog(%s):%s' % (fullname,files) )
+        if files:
+            Utils.p4Logger().debug( 'filelog(%s):%s' % (fullname, files) )
 
-        for revision in files[0].each_revision():
-            self.fileRevisions.append({"revision": revision.rev,
-                                       "action": revision.action,
-                                       "date": revision.time,
-                                       "desc": revision.desc,
-                                       "user": revision.user,
-                                       "client": revision.client
-                                       })
+            for revision in files[0].each_revision():
+                self.fileRevisions.append({"revision": revision.rev,
+                                           "action": revision.action,
+                                           "date": revision.time,
+                                           "desc": revision.desc,
+                                           "user": revision.user,
+                                           "client": revision.client
+                                           })
 
-        self.tableWidget.setRowCount(len(self.fileRevisions))
+            self.tableWidget.setRowCount(len(self.fileRevisions))
 
-        # Map a file action to the path of it's UI icon
-        actionToIcon = {
-                'edit':         os.path.join(interop.getIconPath(), "File0440.png"),
-                'add':          os.path.join(interop.getIconPath(), "File0242.png"),
-                'delete':       os.path.join(interop.getIconPath(), "File0253.png"),
-                'move/delete':  os.path.join(interop.getIconPath(), "File0253.png"),
-                'purge':        os.path.join(interop.getIconPath(), "File0253.png")
-            }
+            # Map a file action to the path of it's UI icon
+            actionToIcon = {
+                    'edit':         os.path.join(interop.getIconPath(), "File0440.png"),
+                    'add':          os.path.join(interop.getIconPath(), "File0242.png"),
+                    'delete':       os.path.join(interop.getIconPath(), "File0253.png"),
+                    'move/delete':  os.path.join(interop.getIconPath(), "File0253.png"),
+                    'purge':        os.path.join(interop.getIconPath(), "File0253.png")
+                }
 
-        # Populate table
-        for i, revision in enumerate(self.fileRevisions):
-            columns = [ 
-                    ("#{0}".format(revision['revision']), None, False),
-                    (revision['user'],  None, False),
-                    (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
-                    (revision['date'], None, False),
-                    (revision['client'], None, False),
-                    (revision['desc'], None, True)
-                ]
+            # Populate table
+            for i, revision in enumerate(self.fileRevisions):
+                columns = [ 
+                        ("#{0}".format(revision['revision']), None, False),
+                        (revision['user'],  None, False),
+                        (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
+                        (revision['date'], None, False),
+                        (revision['client'], None, False),
+                        (revision['desc'], None, True)
+                    ]
 
-            for j, data in enumerate(columns):
-                self.setRevisionTableColumn(i, j, *data)
+                for j, data in enumerate(columns):
+                    self.setRevisionTableColumn(i, j, *data)
 
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.resizeRowsToContents()

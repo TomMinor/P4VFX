@@ -96,10 +96,10 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
         isClientPath = not isDepotPath
         clientRoot = "//{0}".format(self.p4.client)
 
-        dirpath = '/'.join([p4path,'*'])
+        # dirpath = '/'.join([p4path,'*'])
 
         with self.p4.at_exception_level(P4.RAISE_ERRORS):
-            fstat_args = ['-Olhp', '-Dl', dirpath]
+            fstat_args = ['-Olhp', '-Dl', '/'.join([p4path,'*'])]
             # if not showDeleted:
             #     fstat_args.insert(1, '-F "^headAction=delete & ^headAction=move/delete"')
             p4fstat = self.p4.run_fstat(*fstat_args)
@@ -122,38 +122,53 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
                 treeItem.appendFolderItem(f['dir'])
             
             for f in files:
-                # Only show deleted files in depot view (for the purpose of undeleting them)
-                if f['headAction'] in ['delete','move/delete'] and isClientPath:
-                    continue
-
                 filepath = f['depotFile'] if isDepotPath else f['clientFile']
                 Utils.p4Logger().debug('File: \t%s' % filepath)
-                treeItem.appendFileItem( filepath, f['headType'], f['headTime'], f['headAction'], f['headRev'] )
 
-            # Show pending changelist files in client view
+                # Check if this is in a pending changelist,
+                # which gives us different fields to query
+                if f.get('change'):
+                    if f['action'] in ['delete','move/delete'] and isClientPath:
+                        continue
+
+                    treeItem.appendFileItem( filepath, f['type'], '', f['action'], f['workRev'] )
+                else:
+                    # Only show deleted files in depot view (for the purpose of undeleting them)
+                    if f['headAction'] in ['delete','move/delete'] and isClientPath:
+                        continue
+
+                    treeItem.appendFileItem( filepath, f['headType'], f['headTime'], f['headAction'], f['headRev'] )
+
+            # Show pending changelist folders in client view
+            # (fstat is configured to automatically add the files above if they exist in the current directory,
+            # but if they exist in a subdir they won't be found by default)
             if isClientPath:
-                workspaceRoot = self.p4.run_info()[0]['clientRoot'].replace('\\', '/')
+                # if not showDeleted:
+                #     fstat_args.insert(1, '-F "^headAction=delete & ^headAction=move/delete"')
 
-                p4opened = self.p4.run_opened()
-                for p in p4opened:
-                    pendingFilePath = p['clientFile']
-                    relativeClientPath = p4path.replace(workspaceRoot, '')
-                    relativePendingPath = os.path.dirname(pendingFilePath).replace(clientRoot, '')
+                # Query pending changes (just default for now)
+                fstat_pending_args = ['-Or', '-F', 'change=default', '/'.join([p4path,'...'])]
+                p4fstat = self.p4.run_fstat(*fstat_pending_args)[0]
+                Utils.p4Logger().debug('fstat(%s): %s' % (fstat_pending_args, p4fstat['clientFile']))
 
-                    a = '/'.join(p4path.replace(clientRoot, '').split('/')[:-1])
-                    b = '/'.join(relativePendingPath.split('/')[:-1])
+                workspaceRoot = os.path.normpath(self.p4.run_info()[0]['clientRoot'].replace('\\', '/'))
+                p4path = os.path.normpath(p4path).replace(workspaceRoot, '')
+                p4PendingPath = os.path.normpath(p4fstat['clientFile']).replace(workspaceRoot, '')
 
-                    Utils.p4Logger().debug('Pending Path Prefix: \t%s' % os.path.commonprefix( [a, b] ) )
+                pendingPath, pendingFile = os.path.split(p4PendingPath)
+                pendingPathSplit = pendingPath.split(os.sep)
+                commonPrefixSplit = os.path.commonprefix([pendingPath, p4path]).split(os.sep)
+                uncommonDirectories = filter(lambda x: x not in commonPrefixSplit, pendingPathSplit) 
 
-                    pendingFolder = os.path.basename(pendingFilePath)
-                    workspaceFolders = [ os.path.basename(f['dir']) for f in folders ]
-                    if not pendingFolder in workspaceFolders:
-                        Utils.p4Logger().debug( '%s:%s' % (pendingFolder, workspaceFolders))
-                        # treeItem.appendFolderItem( '//%s/%s' % (clientRoot, b) )
-                        # treeItem.appendFileItem( filepath, p['type'], '', p['action'], p['rev'] )
+                if uncommonDirectories:
+                    currentDir = uncommonDirectories[0]
+                    currentFolders = [ os.path.basename(f['dir']) for f in folders ]
 
-                    # Utils.p4Logger().debug('Pending: %s' % filepath)
-                    # Utils.p4Logger().debug('%s : %s' % (clientPath, os.path.dirname(p['clientFile'])) )
+                    Utils.p4Logger().debug( commonPrefixSplit )
+                    Utils.p4Logger().debug( uncommonDirectories )
+                    if not currentDir in currentFolders:
+                        Utils.p4Logger().debug('Adding pending path folder')
+                        treeItem.appendFolderItem( os.path.join(p4path, currentDir) )
 
         Utils.p4Logger().debug('\n\n')
 
