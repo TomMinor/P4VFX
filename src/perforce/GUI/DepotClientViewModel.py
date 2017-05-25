@@ -10,29 +10,6 @@ def epochToTimeStr(time):
     import datetime
     return datetime.datetime.utcfromtimestamp(int(time)).strftime("%d/%m/%Y %H:%M:%S")
 
-def perforceIsDir(p4path):
-    try: 
-        if p4path[-1] in ['/', '\\']:
-            p4path = p4path[:-1]
-
-        result = p4.run_dirs(p4path)
-        return len(result) > 0
-    except P4Exception as e:
-        print e
-        return False
-
-def fullPath(idx):
-    result = [idx]
-
-    parent = idx.parent()
-    while True:
-        if not parent.isValid():
-            break
-        result.append(parent)
-        parent = parent.parent()
-
-    return list(reversed(result))
-
 class PerforceItem(object):
 
     def __init__(self, data, parent=None):
@@ -72,44 +49,52 @@ class PerforceItem(object):
             return self.parentItem.childItems.index(self)
         return 0
 
+    @staticmethod
+    def absoluteP4Path(idx):
+        result = [idx]
+
+        parent = idx.parent()
+        while True:
+            if not parent.isValid():
+                break
+            result.append(parent)
+            parent = parent.parent()
+
+        return list(reversed(result))
+
 class PerforceItemModel(QtCore.QAbstractItemModel):
     def __init__(self, p4, parent=None):
         super(PerforceItemModel, self).__init__(parent)
 
         self.p4 = p4
-        self.rootItem = PerforceItem(None)
         self.showDeleted = False
+        self.rootItem = None
 
-    def populate(self, rootdir, showDeleted=False):
+    def populate(self, rootdir):
         self.rootItem = PerforceItem(None)
-        self.showDeleted = showDeleted
-
+        Utils.p4Logger().debug('Populating: %s' % rootdir)
         self.populateSubDir(idx=None, root=rootdir)
 
-    def populateSubDir(self, idx=None, root="//depot", showDeleted=False):
+    def populateSubDir(self, idx=None, root="//depot"):
         # Overcomplicated way to figure out if idx is root or not
         # Would be better to check if .parent() exists and if not return the root path
         if idx:
-            idxPathModel = fullPath(idx)
+            idxPathModel = PerforceItem.absoluteP4Path(idx)
             idxPathSubDirs = [idxPath.data() for idxPath in idxPathModel]
             idxFullPath = '/'.join(idxPathSubDirs)
 
-            if not idxFullPath:
-                idxFullPath = "."
-
             p4path = '/'.join([root, idxFullPath])
-
             treeItem = idx.internalPointer()
 
             # Pop empty "None" child
             treeItem.popChild()
         else:
-            p4path = '/'.join([root])
-
+            p4path = root
             treeItem = self.rootItem
 
         isDepotPath = root.startswith("//depot")
         isClientPath = not isDepotPath
+        clientRoot = "//{0}".format(self.p4.client)
 
         dirpath = '/'.join([p4path,'*'])
 
@@ -122,34 +107,53 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
             files = []
             folders = []
             for f in p4fstat:
-                # p4 fstat can return directory information as well
+                # p4 fstat returns directory information as well
                 if f.get('dir'):
                     folders.append(f)
                 else:
                     files.append(f)
 
-            # Show pending changelist files in client view
-            if isClientPath:
-                clientRoot = "//{0}".format(self.p4.client)
-                workspaceRoot = self.p4.run_info()[0]['clientRoot'].replace('\\', '/')
-                clientPath = p4path.replace(workspaceRoot, clientRoot)
-
-                p4opened = self.p4.run_opened()
-                for p in p4opened:
-                    filepath = p['clientFile']
-                    Utils.p4Logger().debug('Pending: %s' % filepath)
-                    treeItem.appendFileItem( filepath, p['type'], '', p['action'], p['rev'] )
-                    Utils.p4Logger().debug('%s : %s' % (clientPath, os.path.dirname(p['clientFile'])) )
-
             for f in folders:
+                # For some reason fstat gives us the depot path, we ~should~ be safe with a simple replace
+                if isClientPath:
+                    f['dir'] = f['dir'].replace('//depot', clientRoot)
+
                 Utils.p4Logger().debug('Dir: \t%s' % f['dir'] )
                 treeItem.appendFolderItem(f['dir'])
             
             for f in files:
+                # Only show deleted files in depot view (for the purpose of undeleting them)
+                if f['headAction'] in ['delete','move/delete'] and isClientPath:
+                    continue
+
                 filepath = f['depotFile'] if isDepotPath else f['clientFile']
                 Utils.p4Logger().debug('File: \t%s' % filepath)
                 treeItem.appendFileItem( filepath, f['headType'], f['headTime'], f['headAction'], f['headRev'] )
-                
+
+            # Show pending changelist files in client view
+            if isClientPath:
+                workspaceRoot = self.p4.run_info()[0]['clientRoot'].replace('\\', '/')
+
+                p4opened = self.p4.run_opened()
+                for p in p4opened:
+                    pendingFilePath = p['clientFile']
+                    relativeClientPath = p4path.replace(workspaceRoot, '')
+                    relativePendingPath = os.path.dirname(pendingFilePath).replace(clientRoot, '')
+
+                    a = '/'.join(p4path.replace(clientRoot, '').split('/')[:-1])
+                    b = '/'.join(relativePendingPath.split('/')[:-1])
+
+                    Utils.p4Logger().debug('Pending Path Prefix: \t%s' % os.path.commonprefix( [a, b] ) )
+
+                    pendingFolder = os.path.basename(pendingFilePath)
+                    workspaceFolders = [ os.path.basename(f['dir']) for f in folders ]
+                    if not pendingFolder in workspaceFolders:
+                        Utils.p4Logger().debug( '%s:%s' % (pendingFolder, workspaceFolders))
+                        # treeItem.appendFolderItem( '//%s/%s' % (clientRoot, b) )
+                        # treeItem.appendFileItem( filepath, p['type'], '', p['action'], p['rev'] )
+
+                    # Utils.p4Logger().debug('Pending: %s' % filepath)
+                    # Utils.p4Logger().debug('%s : %s' % (clientPath, os.path.dirname(p['clientFile'])) )
 
         Utils.p4Logger().debug('\n\n')
 

@@ -13,7 +13,6 @@ class BaseRevisionTab(QtWidgets.QWidget):
         super(BaseRevisionTab, self).__init__(parent)
 
         self.p4 = p4
-        self.showDeleted = True
 
         path = os.path.join(interop.getIconPath(), "p4.png")
         icon = QtGui.QIcon(path)
@@ -32,7 +31,7 @@ class BaseRevisionTab(QtWidgets.QWidget):
     def setRoot(self, root):
         self.root = root
         self.model = DepotClientViewModel.PerforceItemModel(self.p4)
-        self.model.populate(self.root, showDeleted=self.showDeleted)
+        self.model.populate(self.root)
 
     def create_controls(self):
         '''
@@ -339,6 +338,8 @@ class BaseRevisionTab(QtWidgets.QWidget):
 
         # Generate revision dictionary
         self.fileRevisions = []
+
+        Utils.p4Logger().debug( 'filelog(%s):%s' % (fullname,files) )
 
         for revision in files[0].each_revision():
             self.fileRevisions.append({"revision": revision.rev,
