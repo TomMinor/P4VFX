@@ -148,27 +148,29 @@ class PerforceItemModel(QtCore.QAbstractItemModel):
 
                 # Query pending changes (just default for now)
                 fstat_pending_args = ['-Or', '-F', 'change=default', '/'.join([p4path,'...'])]
-                p4fstat = self.p4.run_fstat(*fstat_pending_args)[0]
-                Utils.p4Logger().debug('fstat(%s): %s' % (fstat_pending_args, p4fstat['clientFile']))
+                p4fstat = self.p4.run_fstat(*fstat_pending_args)
+                if p4fstat:
+                    p4fstat = p4fstat[0]
+                    Utils.p4Logger().debug('fstat(%s): %s' % (fstat_pending_args, p4fstat['clientFile']))
 
-                workspaceRoot = os.path.normpath(self.p4.run_info()[0]['clientRoot'].replace('\\', '/'))
-                p4path = os.path.normpath(p4path).replace(workspaceRoot, '')
-                p4PendingPath = os.path.normpath(p4fstat['clientFile']).replace(workspaceRoot, '')
+                    workspaceRoot = os.path.normpath(self.p4.run_info()[0]['clientRoot'].replace('\\', '/'))
+                    p4path = os.path.normpath(p4path).replace(workspaceRoot, '')
+                    p4PendingPath = os.path.normpath(p4fstat['clientFile']).replace(workspaceRoot, '')
 
-                pendingPath, pendingFile = os.path.split(p4PendingPath)
-                pendingPathSplit = pendingPath.split(os.sep)
-                commonPrefixSplit = os.path.commonprefix([pendingPath, p4path]).split(os.sep)
-                uncommonDirectories = filter(lambda x: x not in commonPrefixSplit, pendingPathSplit) 
+                    pendingPath, pendingFile = os.path.split(p4PendingPath)
+                    pendingPathSplit = pendingPath.split(os.sep)
+                    commonPrefixSplit = os.path.commonprefix([pendingPath, p4path]).split(os.sep)
+                    uncommonDirectories = filter(lambda x: x not in commonPrefixSplit, pendingPathSplit) 
 
-                if uncommonDirectories:
-                    currentDir = uncommonDirectories[0]
-                    currentFolders = [ os.path.basename(f['dir']) for f in folders ]
+                    if uncommonDirectories:
+                        currentDir = uncommonDirectories[0]
+                        currentFolders = [ os.path.basename(f['dir']) for f in folders ]
 
-                    Utils.p4Logger().debug( commonPrefixSplit )
-                    Utils.p4Logger().debug( uncommonDirectories )
-                    if not currentDir in currentFolders:
-                        Utils.p4Logger().debug('Adding pending path folder')
-                        treeItem.appendFolderItem( os.path.join(p4path, currentDir) )
+                        Utils.p4Logger().debug( commonPrefixSplit )
+                        Utils.p4Logger().debug( uncommonDirectories )
+                        if not currentDir in currentFolders:
+                            Utils.p4Logger().debug('Adding pending path folder')
+                            treeItem.appendFolderItem( os.path.join(p4path, currentDir) )
 
         Utils.p4Logger().debug('\n\n')
 

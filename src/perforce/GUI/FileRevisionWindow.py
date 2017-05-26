@@ -6,6 +6,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from perforce import Utils
 from perforce.PerforceUtils import CmdsChangelist
 from perforce.AppInterop import interop
+from ErrorMessageWindow import displayErrorUI
 import DepotClientViewModel
 
 class BaseRevisionTab(QtWidgets.QWidget):
