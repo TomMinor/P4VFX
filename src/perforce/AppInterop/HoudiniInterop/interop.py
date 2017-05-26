@@ -53,7 +53,7 @@ class HoudiniInterop(BaseInterop):
 
     @staticmethod
     def openScene(filePath):
-        hou.hipFile.open(filePath)
+        hou.hipFile.load(filePath)
 
 
     @staticmethod

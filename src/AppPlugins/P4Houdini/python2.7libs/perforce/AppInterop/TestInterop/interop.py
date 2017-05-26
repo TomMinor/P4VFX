@@ -9,7 +9,7 @@ class TestInterop(BaseInterop):
     window = None
 
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         class TestWidget(QtWidgets.QWidget):
             def keyPressEvent(self, e):
                 if e.key() == QtCore.Qt.Key_Escape:

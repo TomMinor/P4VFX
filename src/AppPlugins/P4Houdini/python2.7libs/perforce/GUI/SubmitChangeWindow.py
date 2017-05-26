@@ -177,13 +177,13 @@ class SubmitChangeUi(QtWidgets.QDialog):
 
         # Remove student setting from Maya .ma files
         # @ToDo make this a generic callback
-        for submitFile in files:
-            if ".ma" in submitFile:
-                try:
-                    pathData = self.p4.run_where(submitFile)[0]
-                    Utils.removeStudentTag(pathData['path'])
-                except P4Exception as e:
-                    print e
+        # for submitFile in files:
+        #     if ".ma" in submitFile:
+        #         try:
+        #             pathData = self.p4.run_where(submitFile)[0]
+        #             Utils.removeStudentTag(pathData['path'])
+        #         except P4Exception as e:
+        #             print e
 
 
         try:

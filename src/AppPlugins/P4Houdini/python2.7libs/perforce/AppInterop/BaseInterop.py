@@ -17,6 +17,9 @@ class BaseCallbacks(object):
 
 
 class BaseInterop(object):
+    @staticmethod
+    def setupEnvironment():
+        pass
 
     @staticmethod
     def main_parent_window():

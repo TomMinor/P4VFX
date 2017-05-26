@@ -6,14 +6,13 @@ from qtpy import QtCore, QtGui, QtWidgets
 from perforce import Utils
 from perforce.PerforceUtils import CmdsChangelist
 from perforce.AppInterop import interop
+from ErrorMessageWindow import displayErrorUI
 import DepotClientViewModel
 
-class FileRevisionUI(QtWidgets.QDialog):
+class BaseRevisionTab(QtWidgets.QWidget):
+    def __init__(self, p4, parent=None):
+        super(BaseRevisionTab, self).__init__(parent)
 
-    def __init__(self, parent=interop.main_parent_window()):
-        super(FileRevisionUI, self).__init__(parent)
-
-    def create(self, p4, files=[]):
         self.p4 = p4
 
         path = os.path.join(interop.getIconPath(), "p4.png")
@@ -25,9 +24,15 @@ class FileRevisionUI(QtWidgets.QDialog):
 
         self.fileRevisions = []
 
+    def create(self):
         self.create_controls()
         self.create_layout()
         self.create_connections()
+
+    def setRoot(self, root):
+        self.root = root
+        self.model = DepotClientViewModel.PerforceItemModel(self.p4)
+        self.model.populate(self.root)
 
     def create_controls(self):
         '''
@@ -40,13 +45,14 @@ class FileRevisionUI(QtWidgets.QDialog):
         self.getPreviewBtn = QtWidgets.QPushButton("Preview Scene")
         self.getPreviewBtn.setEnabled(False)
 
-        # self.model = QtWidgets.QFileSystemModel()
-        # self.model.setRootPath(self.p4.cwd)
+        self.getRevisionBtn.setVisible(False)
+        self.getLatestBtn.setVisible(False)
+        self.getPreviewBtn.setVisible(False)
 
         # self.root = "//{0}".format(self.p4.client)
-        self.root = "//depot"
-        self.model = DepotClientViewModel.PerforceItemModel(self.p4)
-        self.model.populate(self.root, showDeleted=False)
+        # self.root = "//depot"
+        # self.model = DepotClientViewModel.PerforceItemModel(self.p4)
+        # self.model.populate(self.root, showDeleted=False)
         # self.model.populate('//depot', showDeleted=True)
 
         self.fileTree = QtWidgets.QTreeView()
@@ -164,6 +170,10 @@ class FileRevisionUI(QtWidgets.QDialog):
         except P4Exception as e:
             displayErrorUI(e)
 
+    def clearRevisions(self):
+        self.tableWidget.clearContents()
+        self.tableWidget.setRowCount(0)
+
     def getSelectedTreeItemData(self):
         index = self.fileTree.selectedIndexes()[0]
         if not index.isValid():
@@ -210,87 +220,128 @@ class FileRevisionUI(QtWidgets.QDialog):
         except P4Exception as e:
             displayErrorUI(e)
 
+    def setRevisionTableColumn(self, row, column, value, icon=None, isLongText=False):
+        value = str(value)
+
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout()
+        layout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignHCenter)
+
+        # Use a QLineEdit to allow the text to be copied if the data is large
+        if isLongText:
+            textLabel = QtWidgets.QLineEdit()
+            textLabel.setText(value)
+            textLabel.setCursorPosition(0)
+            textLabel.setReadOnly(True)
+            textLabel.setStyleSheet("QLineEdit { border: none }")
+        else:
+            textLabel = QtWidgets.QLabel(value)
+            textLabel.setStyleSheet("QLabel { border: none } ")
+
+        # layout.setContentsMargins(4, 0, 4, 0)
+        
+        if icon:
+            iconPic = QtGui.QPixmap(icon)
+            iconPic = iconPic.scaled(16, 16)
+            iconLabel = QtWidgets.QLabel()
+            iconLabel.setPixmap(iconPic)
+            layout.addWidget(iconLabel)
+        layout.addWidget(textLabel)
+
+        widget.setLayout(layout)
+
+        self.tableWidget.setCellWidget(row, column, widget)
+
     def populateFileRevisions(self, *args):
+        self.statusBar.showMessage("")
+
         try:
             index = self.fileTree.selectedIndexes()
         except IndexError as e:
             Utils.p4Logger().error(e)
-            # return
             raise
 
-        if not index:
+        if not index or not index[0].internalPointer().data:
             return
         index = index[0]
 
-        self.statusBar.showMessage("")
-
-
-        self.getPreviewBtn.setEnabled(True)
-
-        if not index.internalPointer().data:
-            return
-        
         try:
             name, filetype, time, action, change, fullname = index.internalPointer().data
         except ValueError as e:
             Utils.p4Logger().info(index.internalPointer().data)
             raise e
 
+
+        self.getRevisionBtn.setEnabled(False)
+        self.getLatestBtn.setEnabled(False)
+        self.getPreviewBtn.setEnabled(False)
+
+        if filetype == 'Folder':
+            self.getRevisionBtn.setVisible(False)
+            self.getLatestBtn.setVisible(False)
+            self.getPreviewBtn.setVisible(False)
+            self.isSceneFile = False
+            self.clearRevisions()
+            return
+        else:
+            self.getRevisionBtn.setVisible(True)
+            self.getLatestBtn.setVisible(True)
+            self.getPreviewBtn.setVisible(True)
+
         if Utils.queryFileExtension(fullname, interop.getSceneFiles() ):
             self.getPreviewBtn.setEnabled(True)
             self.getPreviewBtn.setText("Preview Scene Revision")
             self.isSceneFile = True
         else:
-            self.getPreviewBtn.setEnabled(False)
             self.getPreviewBtn.setText("Preview File Revision")
             self.isSceneFile = False
 
 
-        if filetype == 'Folder':
-            return
-        else:
-            try:
+        try:
+            with self.p4.at_exception_level(P4.RAISE_ERRORS):
                 files = self.p4.run_filelog("-l", fullname)
-            except P4Exception as e:
-                # TODO - Better error handling here, what if we can't connect etc
-                #eMsg, type = parsePerforceError(e)
-                self.statusBar.showMessage(
-                    "{0} isn't on client".format(os.path.basename(fullname)))
-                self.tableWidget.clearContents()
-                self.getLatestBtn.setEnabled(False)
-                self.getPreviewBtn.setEnabled(False)
-                return
+        except P4Exception as e:
+            # TODO - Better error handling here, what if we can't connect etc
+            #eMsg, type = parsePerforceError(e)
+            self.statusBar.showMessage("{0} isn't on client".format(os.path.basename(fullname)))
+            self.clearRevisions()
+            self.getLatestBtn.setEnabled(False)
+            self.getPreviewBtn.setEnabled(False)
+            return
 
-            self.getLatestBtn.setEnabled(True)
-            self.getPreviewBtn.setEnabled(True)
+        self.getLatestBtn.setEnabled(True)
+        self.getPreviewBtn.setEnabled(True)
 
-            try:
-                with self.p4.at_exception_level(P4.RAISE_ERRORS):
-                    fileInfo = self.p4.run_fstat(fullname)
+        try:
+            with self.p4.at_exception_level(P4.RAISE_ERRORS):
+                p4FileInfo = self.p4.run_fstat(fullname)
 
-                Utils.p4Logger()
-                if fileInfo:
-                    if 'otherLock' in fileInfo[0]:
-                        self.statusBar.showMessage("{0} currently locked by {1}".format(
-                            os.path.basename(fullname), fileInfo[0]['otherLock'][0]))
-                        if fileInfo[0]['otherLock'][0].split('@')[0] != self.p4.user:
-                            self.getRevisionBtn.setEnabled(False)
-                    elif 'otherOpen' in fileInfo[0]:
-                        self.statusBar.showMessage("{0} currently opened by {1}".format(
-                            os.path.basename(fullname), fileInfo[0]['otherOpen'][0]))
-                        if fileInfo[0]['otherOpen'][0].split('@')[0] != self.p4.user:
-                            self.getRevisionBtn.setEnabled(False)
-                    else:
-                        self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(
-                            os.path.basename(fullname),  self.p4.user, self.p4.client))
-                        self.getRevisionBtn.setEnabled(True)
+            if p4FileInfo:
+                fileInfo = p4FileInfo[0]
+                
+                if 'otherLock' in fileInfo:
+                    self.statusBar.showMessage("{0} currently locked by {1}".format(os.path.basename(fullname), fileInfo['otherLock'][0]))
 
-            except P4Exception:
-                self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(fullname)))
-                self.getRevisionBtn.setEnabled(True)
+                    if fileInfo['otherLock'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                elif 'otherOpen' in fileInfo:
+                    self.statusBar.showMessage("{0} currently opened by {1}".format(os.path.basename(fullname), fileInfo['otherOpen'][0]))
 
-            # Generate revision dictionary
-            self.fileRevisions = []
+                    if fileInfo['otherOpen'][0].split('@')[0] != self.p4.user:
+                        self.getRevisionBtn.setEnabled(False)
+                else:
+                    self.statusBar.showMessage("{0} currently opened by {1}@{2}".format(os.path.basename(fullname),  self.p4.user, self.p4.client))
+                    self.getRevisionBtn.setEnabled(True)
+
+        except P4Exception:
+            self.statusBar.showMessage("{0} is not checked out".format(os.path.basename(fullname)))
+            self.getRevisionBtn.setEnabled(True)
+
+        # Generate revision dictionary
+        self.fileRevisions = []
+
+        if files:
+            Utils.p4Logger().debug( 'filelog(%s):%s' % (fullname, files) )
 
             for revision in files[0].each_revision():
                 self.fileRevisions.append({"revision": revision.rev,
@@ -303,129 +354,102 @@ class FileRevisionUI(QtWidgets.QDialog):
 
             self.tableWidget.setRowCount(len(self.fileRevisions))
 
+            # Map a file action to the path of it's UI icon
+            actionToIcon = {
+                    'edit':         os.path.join(interop.getIconPath(), "File0440.png"),
+                    'add':          os.path.join(interop.getIconPath(), "File0242.png"),
+                    'delete':       os.path.join(interop.getIconPath(), "File0253.png"),
+                    'move/delete':  os.path.join(interop.getIconPath(), "File0253.png"),
+                    'purge':        os.path.join(interop.getIconPath(), "File0253.png")
+                }
+
             # Populate table
             for i, revision in enumerate(self.fileRevisions):
-                # Saves us manually keeping track of the current column
-                column = 0
+                columns = [ 
+                        ("#{0}".format(revision['revision']), None, False),
+                        (revision['user'],  None, False),
+                        (revision['action'].capitalize(), actionToIcon.get(revision['action']), False),
+                        (revision['date'], None, False),
+                        (revision['client'], None, False),
+                        (revision['desc'], None, True)
+                    ]
 
-                # Fill in the rest of the data
-                change = "#{0}".format(revision['revision'])
+                for j, data in enumerate(columns):
+                    self.setRevisionTableColumn(i, j, *data)
 
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(change))
+        self.tableWidget.resizeColumnsToContents()
+        self.tableWidget.resizeRowsToContents()
+        self.tableWidget.horizontalHeader().setStretchLastSection(True)
 
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(0, 0, 0, 0)
-                widget.setLayout(layout)
+class ClientRevisionTab(BaseRevisionTab):
+    def __init__(self, p4, parent=None):
+        super(ClientRevisionTab, self).__init__(p4, parent)
 
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
+        # self.setRoot( "//{0}".format(self.p4.client) )
+        self.setRoot( self.p4.run_info()[0]['clientRoot'].replace('\\', '/') )
 
-                # User
-                user = revision['user']
+class DepotRevisionTab(BaseRevisionTab):
+    def __init__(self, p4, parent=None):
+        super(DepotRevisionTab, self).__init__(p4, parent)
 
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(user))
-                label.setStyleSheet("QLabel { border: none } ")
+        self.setRoot( "//depot" )
 
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
-                widget.setLayout(layout)
+class FileRevisionUI(QtWidgets.QWidget):
+    def __init__(self, p4, parent=None):
+        super(FileRevisionUI, self).__init__(parent)
 
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
+        self.p4 = p4
 
-                # Action
-                pendingAction = revision['action']
+        path = os.path.join(interop.getIconPath(), "p4.png")
+        icon = QtGui.QIcon(path)
 
+        self.setWindowTitle("File Revisions")
+        self.setWindowIcon(icon)
+        self.setWindowFlags(QtCore.Qt.Window)
 
-                path = ""
-                if(pendingAction == "edit"):
-                    path = os.path.join(interop.getIconPath(), "File0440.png")
-                elif(pendingAction == "add"):
-                    path = os.path.join(interop.getIconPath(), "File0242.png")
-                elif(pendingAction == "delete"):
-                    path = os.path.join(interop.getIconPath(), "File0253.png")
+        self.fileRevisions = []
 
-                widget = QtWidgets.QWidget()
+    def create(self):
+        self.create_controls()
+        self.create_layout()
+        self.create_connections()
 
-                icon = QtGui.QPixmap(path)
-                icon = icon.scaled(16, 16)
+    def create_controls(self):
+        '''
+        Create the widgets for the dialog
+        '''
+        self.tabwidget = QtWidgets.QTabWidget()
+        self.clientTab = ClientRevisionTab(self.p4)
+        self.clientTab.create()
+        self.depotTab = DepotRevisionTab(self.p4)
+        self.depotTab.create()
+        self.tabwidget.addTab( self.clientTab, 'Client' )
+        self.tabwidget.addTab( self.depotTab , 'Depot' )
 
-                iconLabel = QtWidgets.QLabel()
-                iconLabel.setPixmap(icon)
-                textLabel = QtWidgets.QLabel(pendingAction.capitalize())
-                textLabel.setStyleSheet("QLabel { border: none } ")
+    def create_layout(self):
+        '''
+        Create the layouts and add widgets
+        '''
+        check_box_layout = QtWidgets.QHBoxLayout()
+        check_box_layout.setContentsMargins(2, 2, 2, 2)
 
-                # @TODO Why not move these into a cute little function in a function
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.setContentsMargins(6, 6, 6, 6)
+        main_layout.addWidget(self.tabwidget)
 
-                layout = QtWidgets.QHBoxLayout()
-                layout.addWidget(iconLabel)
-                layout.addWidget(textLabel)
-                layout.setAlignment(QtCore.Qt.AlignLeft)
-                # layout.setContentsMargins(0,0,0,0)
-                widget.setLayout(layout)
+        # main_layout.addLayout(bottomLayout)
+        # main_layout.addWidget(self.horizontalLine)
+        # main_layout.addWidget(self.statusBar)
 
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
+        self.setLayout(main_layout)
 
-                # Date
-                date = revision['date']
-
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(date))
-                label.setStyleSheet("QLabel { border: none } ")
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-
-                # Client
-                client = revision['client']
-
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                label = QtWidgets.QLabel(str(client))
-                label.setStyleSheet("QLabel { border: none } ")
-
-                layout.addWidget(label)
-                layout.setAlignment(QtCore.Qt.AlignCenter)
-                layout.setContentsMargins(4, 0, 4, 0)
-
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-
-                # Description
-                desc = revision['desc']
-
-                widget = QtWidgets.QWidget()
-                layout = QtWidgets.QHBoxLayout()
-                text = QtWidgets.QLineEdit()
-                text.setText(desc)
-                text.setReadOnly(True)
-                text.setAlignment(QtCore.Qt.AlignLeft)
-                text.setStyleSheet("QLineEdit { border: none ")
-
-                layout.addWidget(text)
-                layout.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
-                layout.setContentsMargins(4, 0, 1, 0)
-                widget.setLayout(layout)
-
-                self.tableWidget.setCellWidget(i, column, widget)
-                column += 1
-
-            self.tableWidget.resizeColumnsToContents()
-            self.tableWidget.resizeRowsToContents()
-            self.tableWidget.setColumnWidth(4, 90)
-            self.tableWidget.horizontalHeader().setStretchLastSection(True)
+    def create_connections(self):
+        '''
+        Create the signal/slot connections
+        '''
+        pass
+        # self.fileTree.clicked.connect(self.populateFileRevisions)
+        # self.fileTree.expanded.connect(self.onExpandedFolder)
+        # self.getLatestBtn.clicked.connect(self.onSyncLatest)
+        # self.getRevisionBtn.clicked.connect(self.onRevertToSelection)
+        # self.getPreviewBtn.clicked.connect(self.getPreview)

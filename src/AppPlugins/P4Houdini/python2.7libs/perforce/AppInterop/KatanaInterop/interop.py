@@ -16,7 +16,7 @@ from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 
 class KatanaInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         pass
 
     @staticmethod

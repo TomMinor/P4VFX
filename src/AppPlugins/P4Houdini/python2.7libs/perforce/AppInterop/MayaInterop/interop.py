@@ -102,7 +102,7 @@ class MayaCallbacks(BaseCallbacks):
 
 class MayaInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         import maya.standalone
         maya.standalone.initialize("Python")
 

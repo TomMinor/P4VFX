@@ -14,7 +14,7 @@ from perforce.GUI.qtpy import QtCore, QtGui, QtWidgets
 
 class NukeInterop(BaseInterop):
     @staticmethod
-    def setupTestingEnvironment():
+    def setupEnvironment():
         pass
 
     @staticmethod

@@ -132,7 +132,7 @@ class OpenedFilesUI(QtWidgets.QDialog):
             result = self.p4.run_fstat(depotFile)[0]
             clientFile = result['clientFile']
 
-            if Utils.queryFileExtension(depotFile, ['.ma', '.mb']):
+            if Utils.queryFileExtension(depotFile, interop.getSceneFiles()):
                 interop.openScene(clientFile)
             else:
                 Utils.open_file(clientFile)
