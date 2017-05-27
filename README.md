@@ -3,7 +3,9 @@
 ## Description
 P4VFX is a toolset that is intended to make working with Perforce from within VFX content creation applications simple and intuitive for artists. It achieves this by stripping out complex features such as branching and only providing the tools an artist actually needs to checkout assets, submit/manage changelists, view local and remote file history and revert work as necessary.
 
-![Alt text](images/image01.png?raw=true "Perforce for Maya Changelist Interface")
+![Alt text](images/p4vfx_revision_view.png?raw=true "Perforce for Maya Changelist Interface")
+![Alt text](images/nuke_p4vfx_menu.png?raw=true "Perforce for Maya")
+![Alt text](images/maya_p4vfx_menu.png?raw=true "Perforce for Nuke")
 
 Supported functionality:
 * Depot/Client browser to clearly show what files are to be added, edited or removed (can also view deleted files for restore).
